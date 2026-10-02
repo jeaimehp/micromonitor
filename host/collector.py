@@ -47,7 +47,9 @@ class Collector:
                 pass
         self._procs = seen
         rows.sort(key=lambda r: (r[1], r[2]), reverse=True)
-        return [[name[:NAME_LEN], round(cpu, 1), round(mem, 1)] for name, cpu, mem in rows[:n]]
+        # The TFT font is ASCII-only.
+        return [[name.encode("ascii", "replace").decode()[:NAME_LEN], round(cpu, 1), round(mem, 1)]
+                for name, cpu, mem in rows[:n]]
 
     def sample(self):
         now = time.monotonic()

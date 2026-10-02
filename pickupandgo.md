@@ -39,7 +39,7 @@ Each step ends with: test, git commit, update this file.
 | 6 | RAM graph | DONE |
 | 7 | Disk graph (usage + I/O) | DONE |
 | 8 | Network graph (rx/tx) | DONE |
-| 9 | Top-5 process table | TODO |
+| 9 | Top-5 process table | DONE |
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | TODO |
 
 ## Layout (480x320)
@@ -47,7 +47,7 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-8 are complete. Next: step 9 (top-5 process table in y 210..320, replacing drawTablePlaceholder).
+Steps 0-9 are complete. Next: step 10 (polish: stale-data indicator, run.sh launcher, optional launchd autostart, long soak test).
 Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
 After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
 Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
@@ -76,7 +76,8 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - `Panel panels[4]` = CPU (0,0), RAM (240,0), DISK (0,105), NET (240,105), each 240x105. numSeries 0 = "pending" placeholder.
   fixedMax 100 for %; 0 = autoscale (floor 1.0). Ring history of 113 samples, 2px per sample, newest on the right.
 - `pushSample(panel, a, b)` + set `panel.value` (headline text, top right) inside `updateDashboard()`, which redraws all 4 panels.
-- Process table area is y 210..320 (drawTablePlaceholder for now). Step 9 replaces it.
+- drawTable(): y 210..320, a 15px header strip + 5 x 19px rows. Columns: name (size 2, <=16 chars), CPU bar x208 w110
+  (scaled to 100% = one core, clipped), CPU% right-aligned at 400, MEM% right-aligned at 472. A full redraw incl. table takes about 213 ms.
 - Theme (from the dataviz skill's validated palette, dark mode): surface #1a1a19, grid #383835, text #fff / #c3c2b7,
   series 1 blue #3987e5, series 2 orange #d95926 (this pair passes the CVD and contrast validator). 2-series panels need a legend
   (colored swatch + text label in the text color, never colored text).
@@ -103,6 +104,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 9: process table; verified with 2x `yes` (both 100.0 at top, matching the sender's JSON). Host now ASCII-sanitizes names.
 - Step 8: net panel (rx/tx KB/s, headline = total in KB/s or MB/s). Verified with a 1GB download from proof.ovh.net (about 38 MB/s)
   and an upload to speed.cloudflare.com/__up (about 23 MB/s). Cloudflare __down refuses curl, so don't use it.
 - Step 7: disk panel (rd/wr MB/s + "N% used"). Real 4GB F_NOCACHE write/read showed spikes (about 2.1 GB/s); worst-case legend width checked with synthetic data.

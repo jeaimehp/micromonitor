@@ -302,18 +302,56 @@ void drawPanel(const Panel &p) {
     canvas.push(p.x, p.y);
 }
 
-void drawTablePlaceholder() {
-    canvas.resize(480, 40);
+// ---- Top-5 process table (y 210..320): a header strip + 5 row strips, each pushed separately ----
+const int TABLE_Y = 2 * PANEL_H;
+const int TABLE_HEADER_H = 15;
+const int TABLE_ROW_H = 19;
+const int COL_BAR_X = 208;       // CPU bar, scaled to one full core (100%), clipped
+const int COL_BAR_W = 110;
+const int COL_CPU_RIGHT = 400;   // right edge of the CPU% value
+const int COL_MEM_RIGHT = 472;   // right edge of the MEM% value
+
+void printRight(const char *text, int right, int y) {
+    int16_t bx, by;
+    uint16_t bw, bh;
+    canvas.getTextBounds(text, 0, 0, &bx, &by, &bw, &bh);
+    canvas.setCursor(right - bw, y);
+    canvas.print(text);
+}
+
+void drawTable() {
+    canvas.resize(480, TABLE_HEADER_H);
     canvas.fillScreen(C_SURFACE);
     canvas.setTextSize(1);
     canvas.setTextColor(C_TEXT2);
-    canvas.setCursor(GRAPH_X, 8);
-    canvas.print("TOP PROCESSES  pending");
-    canvas.push(0, 2 * PANEL_H);
-    canvas.fillScreen(C_SURFACE);
-    for (int y = 2 * PANEL_H + 40; y < 320; y += 40) {
+    canvas.setCursor(GRAPH_X, 5);
+    canvas.print("TOP PROCESSES");
+    printRight("CPU%", COL_CPU_RIGHT, 5);
+    printRight("MEM%", COL_MEM_RIGHT, 5);
+    canvas.push(0, TABLE_Y);
+
+    canvas.resize(480, TABLE_ROW_H);
+    for (int i = 0; i < NUM_PROCS; i++) {
         canvas.fillScreen(C_SURFACE);
-        canvas.push(0, y);
+        canvas.drawFastHLine(GRAPH_X, 0, 480 - 2 * GRAPH_X, C_GRID);
+        if (i < metrics.numProcs) {
+            const Proc &p = metrics.procs[i];
+            canvas.setTextSize(2);
+            canvas.setTextColor(C_TEXT);
+            canvas.setCursor(GRAPH_X, 2);
+            canvas.print(p.name);
+
+            int barW = (int)(constrain(p.cpu, 0.0f, 100.0f) / 100.0f * COL_BAR_W);
+            canvas.fillRect(COL_BAR_X, 5, COL_BAR_W, 8, C_GRID);
+            if (barW > 0) canvas.fillRect(COL_BAR_X, 5, barW, 8, C_SERIES[0]);
+
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%.1f", p.cpu);
+            printRight(buf, COL_CPU_RIGHT, 2);
+            snprintf(buf, sizeof(buf), "%.1f", p.mem);
+            printRight(buf, COL_MEM_RIGHT, 2);
+        }
+        canvas.push(0, TABLE_Y + TABLE_HEADER_H + i * TABLE_ROW_H);
     }
 }
 
@@ -330,6 +368,7 @@ void updateDashboard() {
     if (total < 1000) snprintf(netPanel.value, sizeof(netPanel.value), "%.0f KB/s", total);
     else snprintf(netPanel.value, sizeof(netPanel.value), "%.1f MB/s", total / 1000);
     for (const Panel &p : panels) drawPanel(p);
+    drawTable();
 }
 
 void setup() {
@@ -344,7 +383,7 @@ void setup() {
     tft.setRotation(3);  // landscape 480x320, flipped to match how the wing is mounted
     tft.fillScreen(HX8357_BLACK);
     for (const Panel &p : panels) drawPanel(p);
-    drawTablePlaceholder();
+    drawTable();
 }
 
 void loop() {
