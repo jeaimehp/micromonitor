@@ -51,7 +51,7 @@ Each step ends with: test, git commit, update this file.
 | 17 | ~~Firmware SD support~~ ABANDONED: the card only mounted 10-50% of the time (see notes). The user chose to SKIP SD and STREAM from the Mac | REPLACED |
 | 17s | Streaming: host content (themes, motivation PNGs, photos folder) + req/pic protocol in the Streamer; SD code removed from firmware; themes requested on connect | DONE |
 | 18 | Album view: streamed pictures, slideshow 5/10/30s, tap left/right third = prev/next, middle = menu, portrait (album only), clock badge | DONE |
-| 19 | Mixed view: 240x160 streamed photo (left/right) + compact CPU/GPU + RAM, disk/net panels, top process + clock strip | TODO |
+| 19 | Mixed view: 240x160 streamed photo (left/right) + compact CPU/GPU + RAM, disk/net panels, top process + clock strip | DONE |
 | 19b | µMonitor menu mirror + timer/stopwatch (user requests): host menu gets the device menu choices (View, Theme, Layout, Album folder,
 Slideshow, Rotation, Calibrate) + Pictures (Add Pictures… copies into the photos folder, Choose Photos Folder…, Open Photos Folder) +
 Timer (presets 1/5/10/15/25/60 min, Custom…, Pause/Resume, Cancel) + Stopwatch (Start/Stop, Reset). Sync: host sends `cmd <key> <val>`;
@@ -89,7 +89,7 @@ Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + l
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
 SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). The ghost card was removed at the user's request (9 cards now, m01-m09). The SD card still holds the OLD 10-card set (it has a ghost):
 re-copy /motivation (delete the old m*.565 first) the next time the card is in the Mac.
-Step 17 SD was ABANDONED (user decision: stream from the Mac). Step 17s (streaming) and step 18 (album) are DONE. NEXT: step 19 (mixed view), then 19b (µMonitor menu mirror + timer/stopwatch). History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
+Step 17 SD was ABANDONED (user decision: stream from the Mac). Steps 17s (streaming), 18 (album) and 19 (mixed) are DONE. NEXT: 19b (µMonitor menu mirror + timer/stopwatch). History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
 mount+list cycles), but the card mounts only about 20-50% of the time and listings stop early, at EVERY clock (1/4/16 MHz), with or
 without touch, with or without DMA. firmware/sdprobe (SD-only, TFT/touch CS held high, byte-by-byte SPI variant of SdFat) reproduces it
 -> most likely PHYSICAL (card not fully seated, or this ADATA 16GB card is poor in SPI mode). Asked the user to reseat the card and,
@@ -139,6 +139,12 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   dashboardTap), Tiles (2x2 with size-4 numbers + sparklines). HISTORY=240 samples. renderRegion(x,y,w,h,lambda) strips any
   region to fit the canvas.
 - Free RAM after step 14: about 24.0 KB.
+
+## Mixed view (step 19)
+- In dashboard_view.cpp (it reuses the panels): drawMixedPanels() (mini tiles 240x80 CPU/GPU + RAM opposite the photo, DISK/NET
+  standard panels at y160, top-2 strip at y265 + compact clock) runs on each sample and each minute; mixedShow() also fetches the photo
+  (236x156 at +2px, corners rounded by roundCorners()). mixedTick() = slideshow; mixedTap(): photo = next, else the menu.
+  The photo side is settings.mixedSide (More > Photo side). A panel redraw takes 179ms; free RAM 22.6KB.
 
 ## Album + menu v2 (step 18)
 - album.cpp: albumShow/albumStep/albumTick/albumTap, drawClockBadge (132x44 rounded badge bottom-right; redrawn each minute),
@@ -235,6 +241,7 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 19: mixed view (photo left/right, compact panels, top-2 strip + clock) verified by webcam.
 - Step 18: album view (photos + motivation, slideshow, edge taps, portrait, clock badge) verified by webcam; menu page 2.
 - Step 17s: streaming from the Mac (themes + RLE pictures), SD removed. Verified: themes 6, pic ok for both folders and the 240x160 size.
 - Step 16: SD card filled (cp -X, no AppleDouble files), md5 verified, ejected.

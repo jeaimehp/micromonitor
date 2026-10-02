@@ -177,6 +177,11 @@ void ingestSample();            // add the latest metrics to the graph history
 void drawDashboard();
 void drawDashboardStatus();     // only the LIVE / NO HOST DATA line
 bool dashboardTap(int x, int y); // true if the dashboard handled the tap (e.g. Focus layout tile select)
+void drawMixedPanels();         // mixed view: everything except the photo (per sample / per minute)
+void mixedShow();               // mixed view: full redraw including the photo
+void mixedTick();               // mixed view slideshow
+bool mixedTap(int x, int y);    // photo = next picture; false elsewhere (opens the menu)
+void mixedResetIndex();
 
 // ---- Menu (menu.cpp) ----
 extern bool menuOpen;

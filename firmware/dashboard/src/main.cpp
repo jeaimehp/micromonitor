@@ -118,6 +118,7 @@ void redrawView() {
     if (uiBusy) return;
     applyRotation();
     if (settings.view == VIEW_ALBUM) albumShow();
+    else if (settings.view == VIEW_MIXED) mixedShow();
     else drawDashboard();
 }
 
@@ -171,8 +172,11 @@ static void handleLine() {
     stale = false;
     ingestSample();
     uint32_t t0 = millis();
-    bool drawn = !menuOpen && !uiBusy && settings.view == VIEW_DASHBOARD;
-    if (drawn) drawDashboard();
+    bool drawn = !menuOpen && !uiBusy && settings.view != VIEW_ALBUM;
+    if (drawn) {
+        if (settings.view == VIEW_MIXED) drawMixedPanels();
+        else drawDashboard();
+    }
     Serial.printlnf("ack %lu c=%.1f p=%d draw=%lums free=%lu%s", (unsigned long)samples, metrics.cpu,
                     metrics.numProcs, (unsigned long)(millis() - t0), (unsigned long)System.freeMemory(),
                     drawn ? "" : " hidden");
@@ -207,7 +211,10 @@ void loop() {
     }
     if (!stale && millis() - lastSampleMs > STALE_MS) {
         stale = true;
-        if (!menuOpen && !uiBusy && settings.view == VIEW_DASHBOARD) drawDashboardStatus();
+        if (!menuOpen && !uiBusy) {
+            if (settings.view == VIEW_DASHBOARD) drawDashboardStatus();
+            else if (settings.view == VIEW_MIXED) drawMixedPanels();
+        }
     }
     // Keep the clock current even when no samples arrive.
     static int lastMinute = -1;
@@ -215,14 +222,21 @@ void loop() {
         lastMinute = Time.minute();
         if (!menuOpen && !uiBusy) {
             if (settings.view == VIEW_ALBUM) drawClockBadge();
+            else if (settings.view == VIEW_MIXED) drawMixedPanels();
             else drawDashboardStatus();
         }
     }
     albumTick();
+    mixedTick();
     int x, y;
     if (pollTap(x, y)) {
         if (menuOpen) menuTap(x, y);
-        else if (settings.view == VIEW_ALBUM ? !albumTap(x, y) : !dashboardTap(x, y)) openMenu();
+        else {
+            bool handled = settings.view == VIEW_ALBUM   ? albumTap(x, y)
+                           : settings.view == VIEW_MIXED ? mixedTap(x, y)
+                                                         : dashboardTap(x, y);
+            if (!handled) openMenu();
+        }
     }
     menuTick();
 }

@@ -421,3 +421,157 @@ bool dashboardTap(int x, int y) {
     drawDashboard();
     return true;
 }
+
+// ---- Mixed view: photo + compact dashboard ----
+// Top half: a 240x160 photo (left or right) beside CPU/GPU and RAM mini tiles. Bottom: DISK and NET panels,
+// then a strip with the top two processes and a compact clock.
+static const int MIX_PHOTO_W = 240, MIX_PHOTO_H = 160;
+static const int MIX_PANEL_Y = 160, MIX_PANEL_H = 105;
+static const int MIX_STRIP_Y = MIX_PANEL_Y + MIX_PANEL_H;  // 265
+static int mixedIndex = 0;
+static int mixedCount = -1;
+static uint32_t mixedChange = 0;
+
+static int mixedPhotoX() {
+    return settings.mixedSide ? 240 : 0;
+}
+
+// Round the photo's corners by painting the separator color outside a radius-r arc in each corner.
+static void roundCorners(int x, int y, int w, int h, int r) {
+    const int cx[4] = {x, x + w - r, x, x + w - r}, cy[4] = {y, y, y + h - r, y + h - r};
+    for (int k = 0; k < 4; k++) {
+        renderRegion(cx[k], cy[k], r, r, [&] {
+            for (int j = 0; j < r; j++)
+                for (int i = 0; i < r; i++) {
+                    // Distance from the arc center, which sits at the inner corner of this r x r square.
+                    float dx = (k & 1) ? i + 0.5f : r - i - 0.5f;
+                    float dy = (k & 2) ? j + 0.5f : r - j - 0.5f;
+                    if (dx * dx + dy * dy > r * r) canvas.drawPixel(cx[k] + i, cy[k] + j, theme.separator);
+                }
+        });
+    }
+}
+
+static void drawMixedPhoto() {
+    int x = mixedPhotoX();
+    mixedChange = millis();
+    if (stale) {
+        renderRegion(x, 0, MIX_PHOTO_W, MIX_PHOTO_H, [&] {
+            card(x, 0, MIX_PHOTO_W, MIX_PHOTO_H);
+            canvas.setTextSize(1);
+            canvas.setTextColor(theme.text2);
+            printCentered("photos need \xE6Monitor", x + MIX_PHOTO_W / 2, MIX_PHOTO_H / 2 - 4);
+        });
+        mixedCount = -1;
+        return;
+    }
+    int count;
+    // 2px gap like the cards, then round the corners to match them.
+    bool ok = fetchPicture(settings.folder, mixedIndex, x + 2, 2, MIX_PHOTO_W - 4, MIX_PHOTO_H - 4, count);
+    mixedCount = count;
+    if (count == 0 || !ok) {
+        renderRegion(x, 0, MIX_PHOTO_W, MIX_PHOTO_H, [&] {
+            card(x, 0, MIX_PHOTO_W, MIX_PHOTO_H);
+            canvas.setTextSize(1);
+            canvas.setTextColor(theme.text2);
+            printCentered(count == 0 ? "no pictures yet" : "picture failed", x + MIX_PHOTO_W / 2, MIX_PHOTO_H / 2 - 4);
+        });
+        return;
+    }
+    renderRegion(x, 0, MIX_PHOTO_W, 2, [&] { canvas.fillScreen(theme.separator); });
+    renderRegion(x, MIX_PHOTO_H - 2, MIX_PHOTO_W, 2, [&] { canvas.fillScreen(theme.separator); });
+    renderRegion(x, 0, 2, MIX_PHOTO_H, [&] { canvas.fillScreen(theme.separator); });
+    renderRegion(x + MIX_PHOTO_W - 2, 0, 2, MIX_PHOTO_H, [&] { canvas.fillScreen(theme.separator); });
+    roundCorners(x + 2, 2, MIX_PHOTO_W - 4, MIX_PHOTO_H - 4, CARD_RADIUS);
+}
+
+static void drawMixedStrip() {
+    const int w = TABLE_W, h = SCREEN_H - MIX_STRIP_Y;
+    renderRegion(0, MIX_STRIP_Y, w, h, [&] {
+        card(0, MIX_STRIP_Y, w, h);
+        int y = MIX_STRIP_Y;
+        canvas.setTextSize(1);
+        canvas.setTextColor(theme.text2);
+        canvas.setCursor(8, y + 6);
+        canvas.print("TOP PROCESSES");
+        canvas.fillCircle(96, y + 9, 3, stale ? theme.critical : theme.good);
+        canvas.setCursor(103, y + 6);
+        canvas.print(stale ? (samples ? "NO HOST DATA" : "WAITING FOR HOST") : "LIVE");
+        printRight("CPU%", COL_CPU_RIGHT, y + 6);
+        printRight("MEM%", COL_MEM_RIGHT, y + 6);
+        for (int i = 0; i < 2 && i < metrics.numProcs; i++) {
+            const Proc &p = metrics.procs[i];
+            int ty = y + 18 + i * 17;
+            char name[NAME_CHARS + 6];
+            strlcpy(name, p.name, sizeof(name));
+            canvas.setTextSize(2);
+            canvas.setTextColor(theme.text);
+            canvas.setCursor(8, ty);
+            canvas.print(name);
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%.1f", p.cpu);
+            printRight(buf, COL_CPU_RIGHT, ty);
+            snprintf(buf, sizeof(buf), "%.1f", p.mem);
+            printRight(buf, COL_MEM_RIGHT, ty);
+        }
+    });
+    // Compact clock beside the strip.
+    renderRegion(CLOCK_X, MIX_STRIP_Y, CLOCK_W, h, [&] {
+        card(CLOCK_X, MIX_STRIP_Y, CLOCK_W, h);
+        char hm[12], date[16];
+        if (clockValid()) {
+            strlcpy(hm, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(hm));
+            formatDate(date, sizeof(date));
+        } else {
+            strcpy(hm, "--:--");
+            strcpy(date, "no time yet");
+        }
+        char *t = hm;
+        while (*t == ' ') t++;
+        canvas.setTextSize(2);
+        canvas.setTextColor(theme.text);
+        printCentered(t, CLOCK_X + CLOCK_W / 2, MIX_STRIP_Y + 10);
+        canvas.setTextSize(1);
+        canvas.setTextColor(theme.text2);
+        printCentered(date, CLOCK_X + CLOCK_W / 2, MIX_STRIP_Y + 34);
+    });
+}
+
+void drawMixedPanels() {
+    int tx = settings.mixedSide ? 0 : 240;
+    renderRegion(tx, 0, 240, 80, [&] { drawMiniTile(cpuPanel, tx, 0, 240, 80); });
+    renderRegion(tx, 80, 240, 80, [&] { drawMiniTile(ramPanel, tx, 80, 240, 80); });
+    renderRegion(0, MIX_PANEL_Y, 240, MIX_PANEL_H,
+                 [&] { drawStandardPanel(diskPanel, 0, MIX_PANEL_Y, 240, MIX_PANEL_H, 113); });
+    renderRegion(240, MIX_PANEL_Y, 240, MIX_PANEL_H,
+                 [&] { drawStandardPanel(netPanel, 240, MIX_PANEL_Y, 240, MIX_PANEL_H, 113); });
+    drawMixedStrip();
+}
+
+void mixedShow() {
+    drawMixedPanels();
+    drawMixedPhoto();
+}
+
+void mixedResetIndex() {
+    mixedIndex = 0;
+    mixedCount = -1;
+}
+
+void mixedTick() {
+    if (settings.view != VIEW_MIXED || menuOpen || uiBusy) return;
+    uint32_t interval = (uint32_t)SLIDE_SECONDS[settings.slideIdx % NUM_SLIDE_OPTIONS] * 1000;
+    if (millis() - mixedChange >= (mixedCount > 0 ? interval : 3000)) {
+        if (mixedCount > 0) mixedIndex = (mixedIndex + 1) % mixedCount;
+        drawMixedPhoto();
+    }
+}
+
+// Tap on the photo = next picture; anywhere else opens the menu (returns false).
+bool mixedTap(int x, int y) {
+    int px = mixedPhotoX();
+    if (x < px || x >= px + MIX_PHOTO_W || y >= MIX_PHOTO_H) return false;
+    if (mixedCount > 0) mixedIndex = (mixedIndex + 1) % mixedCount;
+    drawMixedPhoto();
+    return true;
+}

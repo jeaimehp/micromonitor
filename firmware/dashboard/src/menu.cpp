@@ -60,9 +60,9 @@ static void describe(int id, ButtonText &t) {
         t.selected = settings.view == VIEW_ALBUM;
         break;
     case B_VIEW_MIXED:
-        t.caption = "coming next";
+        t.caption = "view";
         strcpy(t.value, "Mixed");
-        t.enabled = false;
+        t.selected = settings.view == VIEW_MIXED;
         break;
     case B_THEME:
         t.caption = "theme";
@@ -178,7 +178,8 @@ void menuTap(int x, int y) {
     switch (id) {
     case B_VIEW_DASH:
     case B_VIEW_ALBUM:
-        settings.view = id == B_VIEW_DASH ? VIEW_DASHBOARD : VIEW_ALBUM;
+    case B_VIEW_MIXED:
+        settings.view = id == B_VIEW_DASH ? VIEW_DASHBOARD : id == B_VIEW_ALBUM ? VIEW_ALBUM : VIEW_MIXED;
         saveSettings();
         closeMenu();
         return;
@@ -196,6 +197,7 @@ void menuTap(int x, int y) {
     case B_FOLDER:
         settings.folder = (settings.folder + 1) % NUM_FOLDERS;
         albumResetIndex();
+        mixedResetIndex();
         saveSettings();
         break;
     case B_SLIDES:
