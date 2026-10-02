@@ -17,10 +17,10 @@ static void drawMessage(const char *title, const char *line1, const char *line2)
     renderRegion(0, 0, w, h, [&] {
         canvas.fillRect(0, 0, w, h, theme.separator);
         canvas.fillRoundRect(16, h / 2 - 60, w - 32, 120, 10, theme.surface);
-        canvas.setTextSize(2);
+        canvas.setStyle(2);
         canvas.setTextColor(theme.text);
         printCentered(title, w / 2, h / 2 - 40);
-        canvas.setTextSize(1);
+        canvas.setStyle(1);
         canvas.setTextColor(theme.text2);
         printCentered(line1, w / 2, h / 2 + 2);
         printCentered(line2, w / 2, h / 2 + 18);
@@ -43,10 +43,10 @@ void drawClockBadge() {
         formatDate(date, sizeof(date));
         char *t = hm;
         while (*t == ' ') t++;
-        canvas.setTextSize(2);
+        canvas.setStyle(2);
         canvas.setTextColor(theme.text);
         printCentered(t, x + bw / 2, y + 7);
-        canvas.setTextSize(1);
+        canvas.setStyle(1);
         canvas.setTextColor(theme.text2);
         printCentered(date, x + bw / 2, y + 29);
     });

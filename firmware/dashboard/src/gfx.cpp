@@ -7,6 +7,18 @@ Canvas canvas;
 static uint16_t canvasBuf[CANVAS_PIXELS];
 
 #include "builtin_themes.h"
+#include "FreeSansBold9pt7b.h"
+#include "FreeSansBold12pt7b.h"
+#include "FreeSansBold18pt7b.h"
+
+void Canvas::setStyle(int style) {
+    static const GFXfont *const FONTS[5] = {NULL, NULL, &FreeSansBold9pt7b, &FreeSansBold12pt7b, &FreeSansBold18pt7b};
+    const GFXfont *f = FONTS[constrain(style, 1, 4)];
+    setFont(f);
+    setTextSize(1);
+    // Offset from the top of a capital letter to the baseline: the height of 'H' above the baseline.
+    baseline = f ? -(int8_t)f->glyph['H' - f->first].yOffset : 0;
+}
 
 const char *const LAYOUT_NAMES[LAYOUT_COUNT] = {"Quad", "Stacked", "Focus", "Tiles"};
 Theme theme;
@@ -129,7 +141,7 @@ void printRight(const char *text, int right, int y) {
     int16_t bx, by;
     uint16_t bw, bh;
     canvas.getTextBounds(text, 0, 0, &bx, &by, &bw, &bh);
-    canvas.setCursor(right - bw, y);
+    canvas.cursor(right - bw, y);
     canvas.print(text);
 }
 
@@ -138,11 +150,23 @@ void formatDate(char *buf, size_t len) {
     for (char *q = strstr(buf, "  "); q; q = strstr(buf, "  ")) memmove(q, q + 1, strlen(q));
 }
 
+void printFit(const char *text, int maxW) {
+    char buf[40];
+    strlcpy(buf, text, sizeof(buf));
+    int16_t bx, by;
+    uint16_t bw, bh;
+    for (size_t n = strlen(buf); n > 0; buf[--n] = 0) {
+        canvas.getTextBounds(buf, 0, 0, &bx, &by, &bw, &bh);
+        if (bw <= maxW) break;
+    }
+    canvas.print(buf);
+}
+
 void printCentered(const char *text, int cx, int y) {
     int16_t bx, by;
     uint16_t bw, bh;
     canvas.getTextBounds(text, 0, 0, &bx, &by, &bw, &bh);
-    canvas.setCursor(cx - bw / 2, y);
+    canvas.cursor(cx - bw / 2, y);
     canvas.print(text);
 }
 

@@ -107,9 +107,9 @@ static bool onPage(int id) {
 
 static void drawMenu() {
     canvas.fillScreen(theme.surface);
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text);
-    canvas.setCursor(16, 17);
+    canvas.cursor(16, 17);
     canvas.print(page ? "MENU > MORE" : "MENU");
     canvas.drawFastHLine(0, 47, SCREEN_W, theme.grid);
 
@@ -124,14 +124,14 @@ static void drawMenu() {
         if (t.selected) canvas.drawRoundRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2, 5, border);
         int cx = b.x + b.w / 2;
         if (t.caption[0]) {
-            canvas.setTextSize(1);
+            canvas.setStyle(1);
             canvas.setTextColor(theme.text2);
             printCentered(t.caption, cx, b.y + 9);
-            canvas.setTextSize(2);
+            canvas.setStyle(2);
             canvas.setTextColor(t.enabled ? theme.text : theme.text2);
             printCentered(t.value, cx, b.y + 26);
         } else {
-            canvas.setTextSize(2);
+            canvas.setStyle(2);
             canvas.setTextColor(theme.text);
             printCentered(t.value, cx, b.y + (b.h - 16) / 2);
         }

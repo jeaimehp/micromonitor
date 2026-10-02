@@ -80,7 +80,7 @@ static int calStep;
 
 static void drawCalibration() {
     canvas.fillScreen(theme.surface);
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text);
     printCentered("TOUCH CALIBRATION", SCREEN_W / 2, 110);
     canvas.setTextColor(theme.text2);

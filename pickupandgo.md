@@ -140,6 +140,12 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   region to fit the canvas.
 - Free RAM after step 14: about 24.0 KB.
 
+## Fonts (user request: cleaner font)
+- canvas.setStyle(n) replaces setTextSize: 1 = native 5x7 pixel font (small labels; also the only font with CP437 µ = \xE6),
+  2/3/4 = FreeSansBold 9/12/18pt (from Adafruit_GFX_RK). canvas.cursor(x, top) positions text by the cap top
+  (FreeFonts use a baseline; the offset comes from the 'H' glyph). ALWAYS use setStyle/cursor, never setTextSize/setCursor.
+- printFit(text, maxW) truncates by pixel width (used for process names). Flash use is now about 73KB.
+
 ## Mixed view (step 19)
 - In dashboard_view.cpp (it reuses the panels): drawMixedPanels() (mini tiles 240x80 CPU/GPU + RAM opposite the photo, DISK/NET
   standard panels at y160, top-2 strip at y265 + compact clock) runs on each sample and each minute; mixedShow() also fetches the photo

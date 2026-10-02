@@ -125,14 +125,14 @@ static void drawGraph(const Panel &p, int x, int y, int w, int h, int n, bool gr
 // Legend: a swatch per series with label + latest value (text ink, never series-colored text).
 // Returns the x just past the legend.
 static int drawLegend(const Panel &p, int x, int y) {
-    canvas.setTextSize(1);
+    canvas.setStyle(1);
     canvas.setTextColor(theme.text2);
     for (int s = 0; s < p.numSeries && p.numSeries == 2; s++) {
         canvas.fillRect(x, y, 8, 8, theme.series[s]);
         char buf[20];
         float v = p.count ? histAt(p, s, 0) : 0.0f;
         snprintf(buf, sizeof(buf), v < 10 ? "%s %.1f" : "%s %.0f", p.labels[s], v);
-        canvas.setCursor(x + 12, y);
+        canvas.cursor(x + 12, y);
         canvas.print(buf);
         x += 12 + strlen(buf) * 6 + 10;
     }
@@ -160,16 +160,16 @@ static void panelBackground(int x, int y, int w, int h) {
 // Standard panel: title + headline value, legend row, graph (Quad panels and the Focus main panel).
 static void drawStandardPanel(const Panel &p, int x, int y, int w, int h, int n) {
     panelBackground(x, y, w, h);
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text2);
-    canvas.setCursor(x + 8, y + 7);
+    canvas.cursor(x + 8, y + 7);
     canvas.print(p.title);
     canvas.setTextColor(theme.text);
     printRight(p.value, x + w - 8, y + 7);
     drawLegend(p, x + 8, y + 25);
     char buf[24];
     scaleText(p, n, buf, sizeof(buf));
-    canvas.setTextSize(1);
+    canvas.setStyle(1);
     canvas.setTextColor(theme.text2);
     printRight(buf, x + w - 8, y + 25);
     drawGraph(p, x + 10, y + 38, w - 20, h - 47, n, true);
@@ -178,13 +178,13 @@ static void drawStandardPanel(const Panel &p, int x, int y, int w, int h, int n)
 // Stacked strip: label column on the left, long graph on the right.
 static void drawStrip(const Panel &p, int x, int y, int w, int h) {
     panelBackground(x, y, w, h);
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text2);
-    canvas.setCursor(x + 8, y + 5);
+    canvas.cursor(x + 8, y + 5);
     canvas.print(p.title);
-    canvas.setTextSize(1);
+    canvas.setStyle(1);
     canvas.setTextColor(theme.text);
-    canvas.setCursor(x + 8, y + 24);
+    canvas.cursor(x + 8, y + 24);
     canvas.print(p.value);
     if (p.numSeries == 2) {
         // Two legend lines stacked in the label column.
@@ -194,7 +194,7 @@ static void drawStrip(const Panel &p, int x, int y, int w, int h) {
             char buf[20];
             float v = p.count ? histAt(p, s, 0) : 0.0f;
             snprintf(buf, sizeof(buf), v < 10 ? "%s %.1f" : "%s %.0f", p.labels[s], v);
-            canvas.setCursor(x + 20, y + 35 + s * 11);
+            canvas.cursor(x + 20, y + 35 + s * 11);
             canvas.print(buf);
         }
     }
@@ -206,7 +206,7 @@ static void drawStrip(const Panel &p, int x, int y, int w, int h) {
         int bw = strlen(buf) * 6 + 4;
         canvas.fillRect(gx + 3, y + 8, bw, 10, theme.surface);
         canvas.setTextColor(theme.text2);
-        canvas.setCursor(gx + 5, y + 9);
+        canvas.cursor(gx + 5, y + 9);
         canvas.print(buf);
     }
 }
@@ -214,17 +214,17 @@ static void drawStrip(const Panel &p, int x, int y, int w, int h) {
 // Tile: title, large number, detail line, sparkline.
 static void drawTile(const Panel &p, int x, int y, int w, int h) {
     panelBackground(x, y, w, h);
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text2);
-    canvas.setCursor(x + 8, y + 6);
+    canvas.cursor(x + 8, y + 6);
     canvas.print(p.title);
-    canvas.setTextSize(4);
+    canvas.setStyle(4);
     canvas.setTextColor(theme.text);
-    canvas.setCursor(x + 8, y + 27);
+    canvas.cursor(x + 8, y + 27);
     canvas.print(p.big);
-    canvas.setTextSize(1);
+    canvas.setStyle(1);
     canvas.setTextColor(theme.text2);
-    canvas.setCursor(x + 8, y + 63);
+    canvas.cursor(x + 8, y + 63);
     canvas.print(p.sub);
     drawGraph(p, x + 11, y + 77, w - 22, h - 85, 113, false);
 }
@@ -232,13 +232,13 @@ static void drawTile(const Panel &p, int x, int y, int w, int h) {
 // Small Focus-layout tile: title + value + sparkline. Tapping it makes it the focused metric.
 static void drawMiniTile(const Panel &p, int x, int y, int w, int h) {
     panelBackground(x, y, w, h);
-    canvas.setTextSize(1);
+    canvas.setStyle(1);
     canvas.setTextColor(theme.text2);
-    canvas.setCursor(x + 8, y + 6);
+    canvas.cursor(x + 8, y + 6);
     canvas.print(p.title);
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text);
-    canvas.setCursor(x + 8, y + 17);
+    canvas.cursor(x + 8, y + 17);
     canvas.print(p.value);
     drawGraph(p, x + 11, y + 38, w - 22, h - 46, 60, false);
 }
@@ -258,7 +258,6 @@ static const int TABLE_W = 320;
 static const int CLOCK_X = TABLE_W;
 static const int CLOCK_W = SCREEN_W - TABLE_W;
 static const int TABLE_HEADER_H = 15;
-static const int NAME_CHARS = 11;       // size-2 text, 12px per char
 static const int COL_BAR_X = 146;       // CPU bar, scaled to one full core (100%), clipped
 static const int COL_BAR_W = 56;
 static const int COL_CPU_RIGHT = 258;   // right edge of the CPU% value
@@ -271,13 +270,13 @@ static void tableCard() {
 
 static void drawTableHeader(int y) {
     tableCard();
-    canvas.setTextSize(1);
+    canvas.setStyle(1);
     canvas.setTextColor(theme.text2);
-    canvas.setCursor(8, y + 5);
+    canvas.cursor(8, y + 5);
     canvas.print("TOP PROCESSES");
     // Connection status (dot + label, so it does not rely on color alone).
     canvas.fillCircle(96, y + 8, 3, stale ? theme.critical : theme.good);
-    canvas.setCursor(103, y + 5);
+    canvas.cursor(103, y + 5);
     canvas.print(stale ? (samples ? "NO HOST DATA" : "WAITING FOR HOST") : "LIVE");
     printRight("CPU%", COL_CPU_RIGHT, y + 5);
     printRight("MEM%", COL_MEM_RIGHT, y + 5);
@@ -289,12 +288,10 @@ static void drawTableRow(int i, int y, int h) {
     if (i >= metrics.numProcs) return;
     const Proc &p = metrics.procs[i];
     int ty = y + (h - 16) / 2 + 1;
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text);
-    canvas.setCursor(8, ty);
-    char name[NAME_CHARS + 1];
-    strlcpy(name, p.name, sizeof(name));
-    canvas.print(name);
+    canvas.cursor(8, ty);
+    printFit(p.name, COL_BAR_X - 14);
     int barW = (int)(constrain(p.cpu, 0.0f, 100.0f) / 100.0f * COL_BAR_W);
     canvas.fillRoundRect(COL_BAR_X, y + h / 2 - 4, COL_BAR_W, 8, 4, theme.grid);
     if (barW > 0) canvas.fillRoundRect(COL_BAR_X, y + h / 2 - 4, max(barW, 8), 8, 4, theme.series[0]);
@@ -322,23 +319,32 @@ static void drawClockTile(int y) {
     }
     char *t = hm;
     while (*t == ' ') t++;  // %l pads single-digit hours
-    // Time in size 4 (24x32 per char) with AM/PM in size 2 beside it, centered as one unit.
-    int tw = strlen(t) * 24, aw = ampm[0] ? 4 + strlen(ampm) * 12 : 0;
+    // Large time with AM/PM beside it (aligned to its baseline), centered as one unit; the date below.
+    int16_t bx, by;
+    uint16_t tw, th, aw = 0, ah;
+    canvas.setStyle(4);
+    canvas.getTextBounds(t, 0, 0, &bx, &by, &tw, &th);
+    if (ampm[0]) {
+        canvas.setStyle(2);
+        canvas.getTextBounds(ampm, 0, 0, &bx, &by, &aw, &ah);
+        aw += 5;
+    }
+    const int timeH = 25, dateH = 13, gap = 12;  // cap heights of the 18pt and 9pt fonts
     int x0 = cx - (tw + aw) / 2;
-    int ty = y + (h - 32 - 10 - 16) / 2;
-    canvas.setTextSize(4);
+    int ty = y + (h - timeH - gap - dateH) / 2;
+    canvas.setStyle(4);
     canvas.setTextColor(theme.text);
-    canvas.setCursor(x0, ty);
+    canvas.cursor(x0, ty);
     canvas.print(t);
     if (aw) {
-        canvas.setTextSize(2);
+        canvas.setStyle(2);
         canvas.setTextColor(theme.text2);
-        canvas.setCursor(x0 + tw + 4, ty + 16);
+        canvas.cursor(x0 + tw + 5, ty + timeH - 13);
         canvas.print(ampm);
     }
-    canvas.setTextSize(2);
+    canvas.setStyle(2);
     canvas.setTextColor(theme.text2);
-    printCentered(date, cx, ty + 32 + 10);
+    printCentered(date, cx, ty + timeH + gap);
 }
 
 static void drawClock() {
@@ -458,7 +464,7 @@ static void drawMixedPhoto() {
     if (stale) {
         renderRegion(x, 0, MIX_PHOTO_W, MIX_PHOTO_H, [&] {
             card(x, 0, MIX_PHOTO_W, MIX_PHOTO_H);
-            canvas.setTextSize(1);
+            canvas.setStyle(1);
             canvas.setTextColor(theme.text2);
             printCentered("photos need \xE6Monitor", x + MIX_PHOTO_W / 2, MIX_PHOTO_H / 2 - 4);
         });
@@ -472,7 +478,7 @@ static void drawMixedPhoto() {
     if (count == 0 || !ok) {
         renderRegion(x, 0, MIX_PHOTO_W, MIX_PHOTO_H, [&] {
             card(x, 0, MIX_PHOTO_W, MIX_PHOTO_H);
-            canvas.setTextSize(1);
+            canvas.setStyle(1);
             canvas.setTextColor(theme.text2);
             printCentered(count == 0 ? "no pictures yet" : "picture failed", x + MIX_PHOTO_W / 2, MIX_PHOTO_H / 2 - 4);
         });
@@ -490,24 +496,22 @@ static void drawMixedStrip() {
     renderRegion(0, MIX_STRIP_Y, w, h, [&] {
         card(0, MIX_STRIP_Y, w, h);
         int y = MIX_STRIP_Y;
-        canvas.setTextSize(1);
+        canvas.setStyle(1);
         canvas.setTextColor(theme.text2);
-        canvas.setCursor(8, y + 6);
+        canvas.cursor(8, y + 6);
         canvas.print("TOP PROCESSES");
         canvas.fillCircle(96, y + 9, 3, stale ? theme.critical : theme.good);
-        canvas.setCursor(103, y + 6);
+        canvas.cursor(103, y + 6);
         canvas.print(stale ? (samples ? "NO HOST DATA" : "WAITING FOR HOST") : "LIVE");
         printRight("CPU%", COL_CPU_RIGHT, y + 6);
         printRight("MEM%", COL_MEM_RIGHT, y + 6);
         for (int i = 0; i < 2 && i < metrics.numProcs; i++) {
             const Proc &p = metrics.procs[i];
             int ty = y + 18 + i * 17;
-            char name[NAME_CHARS + 6];
-            strlcpy(name, p.name, sizeof(name));
-            canvas.setTextSize(2);
+            canvas.setStyle(2);
             canvas.setTextColor(theme.text);
-            canvas.setCursor(8, ty);
-            canvas.print(name);
+            canvas.cursor(8, ty);
+            printFit(p.name, COL_CPU_RIGHT - 60);
             char buf[12];
             snprintf(buf, sizeof(buf), "%.1f", p.cpu);
             printRight(buf, COL_CPU_RIGHT, ty);
@@ -528,10 +532,10 @@ static void drawMixedStrip() {
         }
         char *t = hm;
         while (*t == ' ') t++;
-        canvas.setTextSize(2);
+        canvas.setStyle(2);
         canvas.setTextColor(theme.text);
         printCentered(t, CLOCK_X + CLOCK_W / 2, MIX_STRIP_Y + 10);
-        canvas.setTextSize(1);
+        canvas.setStyle(1);
         canvas.setTextColor(theme.text2);
         printCentered(date, CLOCK_X + CLOCK_W / 2, MIX_STRIP_Y + 34);
     });

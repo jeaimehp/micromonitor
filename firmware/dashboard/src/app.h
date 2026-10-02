@@ -65,10 +65,15 @@ public:
     void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) override;
     void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override;
     void push(int16_t x, int16_t y);  // byte-swaps the buffer in place: redraw before pushing again
+    // Text styles: 1 = native 5x7 pixel font; 2/3/4 = FreeSans Bold 9/12/18pt (cleaner than scaled pixel text).
+    void setStyle(int style);
+    // Position text by the top of its capital letters (FreeFonts are positioned by baseline).
+    void cursor(int16_t x, int16_t top) { setCursor(x, top + baseline); }
 
 private:
     int16_t ox = 0, oy = 0;
     int16_t bufW = 1, bufH = 1;
+    int16_t baseline = 0;
 };
 
 enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_COUNT };
@@ -105,6 +110,7 @@ void applyTheme(int i);  // also used at boot; out-of-range indexes fall back to
 void applyRotation();
 void printRight(const char *text, int right, int y);
 void printCentered(const char *text, int cx, int y);
+void printFit(const char *text, int maxW);  // print at the cursor, dropping trailing chars to fit maxW pixels
 void formatDate(char *buf, size_t len);  // "Fri Oct 2" (no double space before single-digit days)
 // Render the screen rectangle (x, y, w, h): draw() uses absolute screen coordinates and is called once per
 // horizontal strip that fits the canvas buffer.
