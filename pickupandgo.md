@@ -34,7 +34,7 @@ Each step ends with: test, git commit, update this file.
 | 1 | Device bring-up: Device OS 1.5.2, hello firmware, USB serial heartbeat | DONE |
 | 2 | Display bring-up: HX8357 driver, pin map, test pattern (user confirms visually) | DONE (verified by webcam) |
 | 3 | Host collector: metrics as JSON lines every 2s | DONE (done early, while blocked on login) |
-| 4 | Serial link host->device, parse + ack, auto-reconnect | TODO |
+| 4 | Serial link host->device, parse + ack, auto-reconnect | DONE |
 | 5 | Dashboard frame + CPU graph | TODO |
 | 6 | RAM graph | TODO |
 | 7 | Disk graph (usage + I/O) | TODO |
@@ -47,7 +47,7 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-3 are complete. Next: step 4 (serial link: host sends JSON lines, device parses them and replies with an ack).
+Steps 0-4 are complete. Next: step 5 (dashboard frame + CPU graph). The device currently shows a temporary text status screen (drawStatus).
 Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
 After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
 Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
@@ -64,6 +64,18 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
   Pin map CONFIRMED on hardware.
 - firmware/hello: prints "hello N os=1.5.2" every 1s. Verified.
 
+## Rendering approach (IMPORTANT for performance)
+- Drawing directly with tft.* GFX calls is extremely slow (about 3s for a few lines of text): each pixel or char is a separate SPI call.
+- Instead, draw into `Canvas` (a custom Adafruit_GFX subclass over the shared `canvasBuf`, 240*110 px = 52.8KB), call
+  `canvas.resize(w,h)` (requires w*h <= CANVAS_PIXELS), then `canvas.push(x,y)`, which byte-swaps the buffer and sends it with one
+  `SPI.transfer` DMA. After a push the buffer is swapped, so always redraw before pushing again.
+- SPI runs at 32 MHz with no visible glitches. Pushing about 480x280 px takes about 185 ms in total.
+- RAM: about 30 KB free after the canvas (shown as `free` on the status screen).
+
+## Running
+- `.venv/bin/python host/sender.py -v [--count N] [--port P]` collects every 2s and writes JSON lines to the first `/dev/cu.usbmodem*`.
+  It prints device replies (`ack N c=.. p=.. draw=..ms`, or `err N`) and reconnects on its own (tested with `particle usb reset`).
+
 ## Host collector protocol (host/collector.py)
 - Test with `.venv/bin/python host/collector.py 3`, which prints 3 lines (one per 2s; 0 means run forever).
 - JSON keys: c cpu%, r ram%, ru/rt ram used/total GB, d disk used% (/System/Volumes/Data), dr/dw disk MB/s,
@@ -71,6 +83,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 4: JSON parse (Device OS JSONValue) + ack. Switched to canvas+DMA rendering (2945ms -> 185ms). Reconnect tested.
 - Step 2: test pattern verified by webcam; switched to rotation 3.
 - Step 1: Device OS 1.5.2 flashed, hello firmware heartbeat confirmed over USB serial.
 - Step 3: collector.py verified: `yes` shows at 99.9% in the top-5, disk % matches df.
