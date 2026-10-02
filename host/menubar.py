@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Menu bar app: streams this Mac's metrics to the Xenon dashboard and shows the link status as a status icon."""
+"""µMonitor menu bar app: streams this Mac's metrics, pictures and themes to the Xenon dashboard, mirrors the
+display's touch menu, and runs a timer / stopwatch shown on the display."""
 import os
 import plistlib
 import subprocess
@@ -8,12 +9,22 @@ import threading
 
 import rumps
 
+import content
 from sender import Streamer
 
 APP_NAME = "µMonitor"  # micro sign U+00B5
 LABEL = "com.xenon-feather-tft.micromonitor"
 LAUNCH_AGENT = os.path.expanduser(f"~/Library/LaunchAgents/{LABEL}.plist")
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Mirrors of the device menu; the device reports each setting as the index of its option.
+VIEWS = ["Dashboard", "Album", "Mixed"]
+LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles"]
+FOLDERS = ["Photos", "Motivation"]
+SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds"]
+ROTATIONS = ["Normal", "Flipped 180°", "Portrait (album)", "Portrait flipped (album)"]
+SIDES = ["Photo on the Left", "Photo on the Right"]
+TIMER_PRESETS = [1, 5, 10, 15, 25, 60]
 
 
 def resource(name):
@@ -30,22 +41,61 @@ def launch_command():
     return [sys.executable, os.path.abspath(__file__)]
 
 
+def osascript(script):
+    """Run AppleScript; returns stdout, or None if the user cancelled."""
+    r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
 class DashboardApp(rumps.App):
     def __init__(self):
         super().__init__(APP_NAME, icon=resource("menubar.png"), template=True, quit_button=None)
         self.status_item = rumps.MenuItem("Starting...")
         self.detail_item = rumps.MenuItem("")
+        self.timer_status = rumps.MenuItem("")
         self.stream_item = rumps.MenuItem("Streaming", callback=self.toggle_streaming)
         self.cpu_item = rumps.MenuItem("Show CPU % in Menu Bar", callback=self.toggle_cpu)
         self.login_item = rumps.MenuItem("Start at Login", callback=self.toggle_login)
+
+        # Display: mirrors the touch menu on the screen.
+        self.display = rumps.MenuItem("Display")
+        self.choice_menus = {}
+        for title, key, labels in [("View", "view", VIEWS), ("Layout", "layout", LAYOUTS),
+                                   ("Album Pictures", "folder", FOLDERS), ("Slideshow", "slides", SLIDES),
+                                   ("Rotation", "rot", ROTATIONS), ("Mixed View", "side", SIDES)]:
+            self.display.add(self._choice_menu(title, key, labels))
+        self.theme_menu = rumps.MenuItem("Theme")
+        self.theme_items = []
+        self.display.add(self.theme_menu)
+        self.badge_item = rumps.MenuItem("Clock on Pictures", callback=self.toggle_badge)
+        self.display.add(self.badge_item)
+        self.display.add(None)
+        self.display.add(rumps.MenuItem("Next Picture", callback=lambda _: self.send("next")))
+        self.display.add(rumps.MenuItem("Previous Picture", callback=lambda _: self.send("prev")))
+        self.display.add(None)
+        self.display.add(rumps.MenuItem("Calibrate Touch…", callback=self.calibrate))
+
+        pictures = rumps.MenuItem("Pictures")
+        pictures.add(rumps.MenuItem("Add Pictures…", callback=self.add_pictures))
+        pictures.add(rumps.MenuItem("Choose Photos Folder…", callback=self.choose_folder))
+        pictures.add(rumps.MenuItem("Open Photos Folder", callback=self.open_folder))
+
+        timer = rumps.MenuItem("Timer")
+        for m in TIMER_PRESETS:
+            timer.add(rumps.MenuItem(f"{m} minute{'s' if m > 1 else ''}", callback=self._preset(m)))
+        timer.add(rumps.MenuItem("Custom…", callback=self.custom_timer))
+        timer.add(None)
+        timer.add(rumps.MenuItem("Pause / Resume", callback=lambda _: self._timers("toggle_pause")))
+        timer.add(rumps.MenuItem("Cancel", callback=lambda _: self._timers("cancel")))
+
+        stopwatch = rumps.MenuItem("Stopwatch")
+        stopwatch.add(rumps.MenuItem("Start / Stop", callback=lambda _: self._timers("stopwatch_start_stop")))
+        stopwatch.add(rumps.MenuItem("Reset", callback=lambda _: self._timers("stopwatch_reset")))
+
         self.menu = [
-            self.status_item,
-            self.detail_item,
-            None,
-            self.stream_item,
-            self.cpu_item,
-            self.login_item,
-            None,
+            self.status_item, self.detail_item, self.timer_status, None,
+            self.display, pictures, timer, stopwatch, None,
+            self.stream_item, self.cpu_item, self.login_item, None,
             rumps.MenuItem("Quit", callback=self.quit),
         ]
         self.cpu_item.state = 1
@@ -53,12 +103,94 @@ class DashboardApp(rumps.App):
         self.streamer = None
         self.thread = None
         self.start_streaming()
-        self.timer = rumps.Timer(self.refresh, 1)
-        self.timer.start()
+        self.refresh_timer = rumps.Timer(self.refresh, 1)
+        self.refresh_timer.start()
+
+    # ---- display settings (sent as "cmd <key> <value>"; the device answers with its new state) ----
+    def _choice_menu(self, title, key, labels):
+        menu = rumps.MenuItem(title)
+        items = []
+        for i, label in enumerate(labels):
+            item = rumps.MenuItem(label, callback=lambda _, k=key, v=i: self.send(f"{k} {v}"))
+            menu.add(item)
+            items.append(item)
+        self.choice_menus[key] = items
+        return menu
+
+    def send(self, text):
+        if not (self.streamer and self.stream_item.state and self.streamer.command(text)):
+            rumps.notification(APP_NAME, "Display not connected", "Plug in the Xenon and turn on Streaming.")
+            return False
+        return True
+
+    def toggle_badge(self, item):
+        self.send(f"badge {0 if item.state else 1}")
+
+    def calibrate(self, _):
+        if self.send("calibrate"):
+            rumps.notification(APP_NAME, "Calibrate the touch screen",
+                               "Press the center of each target on the display, one at a time.")
+
+    def _rebuild_themes(self, names):
+        if [i.title for i in self.theme_items] == names:
+            return
+        if self.theme_items:
+            self.theme_menu.clear()
+        self.theme_items = []
+        for i, name in enumerate(names):
+            item = rumps.MenuItem(name, callback=lambda _, v=i: self.send(f"theme {v}"))
+            self.theme_menu.add(item)
+            self.theme_items.append(item)
+
+    # ---- pictures ----
+    def add_pictures(self, _):
+        out = osascript('set fs to choose file with prompt "Add pictures to µMonitor" of type {"public.image"} '
+                        'with multiple selections allowed\n'
+                        'set out to ""\nrepeat with f in fs\nset out to out & POSIX path of f & linefeed\nend repeat\n'
+                        'return out')
+        if out:
+            n = content.add_pictures([p for p in out.splitlines() if p])
+            rumps.notification(APP_NAME, f"Added {n} picture{'s' if n != 1 else ''}", content.photos_dir())
+            if self.streamer:
+                self.streamer.command("next")  # show a new picture if the album is open
+
+    def choose_folder(self, _):
+        out = osascript('return POSIX path of (choose folder with prompt "Choose the folder with your photos")')
+        if out:
+            content.set_photos_dir(out.rstrip("/"))
+            if self.streamer:
+                self.streamer.command("next")
+
+    def open_folder(self, _):
+        subprocess.run(["open", content.photos_dir()])
+
+    # ---- timer / stopwatch (kept on the Mac, shown on the display) ----
+    def _timers(self, action, *args):
+        if self.streamer:
+            getattr(self.streamer.timers, action)(*args)
+            self.refresh(None)
+
+    def _preset(self, minutes):
+        return lambda _: self._timers("start_timer", minutes * 60)
+
+    def custom_timer(self, _):
+        w = rumps.Window("Minutes (decimals OK, e.g. 2.5):", "Custom Timer", default_text="20",
+                         ok="Start", cancel="Cancel", dimensions=(200, 24))
+        r = w.run()
+        if r.clicked:
+            try:
+                minutes = float(r.text.strip())
+            except ValueError:
+                return
+            if minutes > 0:
+                self._timers("start_timer", minutes * 60)
 
     # ---- streaming ----
     def start_streaming(self):
+        old = self.streamer.timers if self.streamer else None
         self.streamer = Streamer()
+        if old:
+            self.streamer.timers = old  # keep a running timer across pausing and resuming the stream
         self.thread = threading.Thread(target=self.streamer.run, daemon=True)
         self.thread.start()
         self.stream_item.state = 1
@@ -67,11 +199,10 @@ class DashboardApp(rumps.App):
         if self.streamer:
             self.streamer.stop()
             self.thread.join(timeout=3)
-        self.streamer = None
         self.stream_item.state = 0
 
     def toggle_streaming(self, _):
-        if self.streamer:
+        if self.stream_item.state:
             self.stop_streaming()
         else:
             self.start_streaming()
@@ -80,7 +211,11 @@ class DashboardApp(rumps.App):
     # ---- UI ----
     def refresh(self, _):
         s = self.streamer
-        if s is None:
+        if s and s.timers.consume_done():
+            rumps.notification(APP_NAME, "Time's up!", "Your timer has finished.")
+        tdesc = s.timers.describe() if s else None
+        self.timer_status.title = tdesc or "No timer running"
+        if not self.stream_item.state:
             self.status_item.title = "Paused"
             self.detail_item.title = "Dashboard shows NO HOST DATA"
             self.title = None
@@ -96,7 +231,19 @@ class DashboardApp(rumps.App):
         else:
             self.status_item.title = "Xenon not found (plug in USB)"
             self.detail_item.title = "Retrying every 2s"
-        if self.cpu_item.state and s.connected_port and s.last_sample:
+        # Check marks follow the device's reported state.
+        st = s.device_state
+        for key, items in self.choice_menus.items():
+            for i, item in enumerate(items):
+                item.state = int(st.get(key) == i)
+        self._rebuild_themes(s.device_themes)
+        for i, item in enumerate(self.theme_items):
+            item.state = int(st.get("theme") == i)
+        self.badge_item.state = int(st.get("badge", 0) == 1)
+        # Menu bar title: a running timer wins over CPU %.
+        if tdesc and s.connected_port:
+            self.title = tdesc.split(": ", 1)[1]
+        elif self.cpu_item.state and s.connected_port and s.last_sample:
             self.title = f"{s.last_sample['c']:.0f}%"
         else:
             self.title = None if s.connected_port else "!"

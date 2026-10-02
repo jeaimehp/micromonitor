@@ -9,21 +9,23 @@ Mac: host/collector.py (psutil) -> host/sender.py --USB serial, JSON line every 
 
 ## Run
 **µMonitor (menu bar app):** build it with `.venv/bin/python setup.py py2app`, then open `dist/µMonitor.app`
-(or copy it to /Applications). It shows a status icon with the live CPU % and has this menu:
-connection status, Streaming (pause/resume), Show CPU % in Menu Bar, Start at Login, Quit. It has no Dock icon.
+(or copy it to /Applications). It streams metrics, pictures and themes to the display. Its menu has:
+- **Display:** View (Dashboard / Album / Mixed), Layout, Theme, Album Pictures (Photos / Motivation), Slideshow speed,
+  Rotation (incl. portrait for the album), Mixed View photo side, Clock on Pictures, Next/Previous Picture, Calibrate Touch…
+  These mirror the touch menu on the screen (tap the screen to open it); either one updates the other.
+- **Pictures:** Add Pictures… (copies into `~/Pictures/µMonitor`), Choose Photos Folder…, Open Photos Folder
+- **Timer:** 1–60 minute presets, Custom…, Pause/Resume, Cancel. **Stopwatch:** Start/Stop, Reset.
+  Both show on the display (clock tile / album badge); a finished timer flashes TIME'S UP and posts a notification.
+- Streaming on/off, CPU % in the menu bar, Start at Login, Quit. No Dock icon.
 
-**Command line (alternative):**
-```bash
-./run.sh            # stream to the first /dev/cu.usbmodem*; add -v to see device acks
-```
-Run only one of them at a time: only one program can use the serial port.
-The header of the process table shows **LIVE** (green dot) while data is arriving. It shows **NO HOST DATA** (red dot)
-after 6 seconds without samples.
+**Command line (alternative):** `./run.sh` (add `-v` to see device messages). Run only one of the two: they share the USB port.
 
-Autostart at login: use µMonitor's "Start at Login" menu item. For the command-line version, use `tools/install-launchd.sh` (undo with `--uninstall`).
+The process table header shows **LIVE** (green dot) while data arrives and **NO HOST DATA** (red dot) after 6 seconds without it.
 
 ## Screen
-| CPU % (0-100) | RAM % + used/total GB |
+Dashboard layouts: Quad, Stacked, Focus, Tiles (8 themes: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, High Contrast).
+
+| CPU/GPU % (0-100) | RAM % + used/total GB |
 |---|---|
 | **Disk**: read/write MB/s (autoscaled) + % used | **Net**: rx/tx KB/s (autoscaled) + total rate |
 

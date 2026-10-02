@@ -57,7 +57,7 @@ Slideshow, Rotation, Calibrate) + Pictures (Add Pictures… copies into the phot
 Timer (presets 1/5/10/15/25/60 min, Custom…, Pause/Resume, Cancel) + Stopwatch (Start/Stop, Reset). Sync: host sends `cmd <key> <val>`;
 the device replies `state view=.. theme=.. layout=.. folder=.. slides=.. rot=.. themes=a,b,c` on connect and after every change (menu
 or command) so the checkmarks match. The timer/stopwatch state goes in samples (start epoch, duration/elapsed, running); the device
-ticks locally every 1s and shows a big-digit banner over any view; at zero it flashes TIME'S UP and µMonitor posts a macOS notification | TODO |
+ticks locally every 1s and shows a big-digit banner over any view; at zero it flashes TIME'S UP and µMonitor posts a macOS notification | DONE (menu clicks verified headlessly; user to check the real menu) |
 | 20 | Soak test with view switching, docs | TODO |
 
 ## Phase 2 spec (steps 12-20, approved by the user)
@@ -89,7 +89,8 @@ Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + l
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
 SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). The ghost card was removed at the user's request (9 cards now, m01-m09). The SD card still holds the OLD 10-card set (it has a ghost):
 re-copy /motivation (delete the old m*.565 first) the next time the card is in the Mac.
-Step 17 SD was ABANDONED (user decision: stream from the Mac). Steps 17s (streaming), 18 (album) and 19 (mixed) are DONE. NEXT: 19b (µMonitor menu mirror + timer/stopwatch). History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
+Step 17 SD was ABANDONED (user decision: stream from the Mac). Steps 17s, 18, 19 and 19b are DONE. NEXT: step 20 (soak with view switching, docs). The user should click through µMonitor's real menu (I can't click
+the menu bar; callbacks were tested headlessly). (old:) 19b (µMonitor menu mirror + timer/stopwatch). History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
 mount+list cycles), but the card mounts only about 20-50% of the time and listings stop early, at EVERY clock (1/4/16 MHz), with or
 without touch, with or without DMA. firmware/sdprobe (SD-only, TFT/touch CS held high, byte-by-byte SPI variant of SdFat) reproduces it
 -> most likely PHYSICAL (card not fully seated, or this ADATA 16GB card is poor in SPI mode). Asked the user to reseat the card and,
@@ -139,6 +140,23 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   dashboardTap), Tiles (2x2 with size-4 numbers + sparklines). HISTORY=240 samples. renderRegion(x,y,w,h,lambda) strips any
   region to fit the canvas.
 - Free RAM after step 14: about 24.0 KB.
+
+## µMonitor menu mirror + timer/stopwatch (step 19b)
+- Device: control.cpp: applySetting(key, v) (view theme layout folder slides rot badge side) is used by BOTH the touch menu and
+  "cmd <key> <v>" from the Mac; also "cmd next|prev|calibrate|state". reportState() prints
+  `state view=.. theme=.. layout=.. folder=.. slides=.. rot=.. badge=.. side=.. themes=Dark,Light,...` after every change, when themes
+  arrive, and on "cmd state" (sent by the host on connect). Timer: samples carry "tm":[mode 1=timer|2=stopwatch, seconds, running];
+  the device ticks locally and shows it in the dashboard clock tile (drawTimerTile), the mixed compact clock, and the album badge;
+  when done it flashes critical red and shows TIME'S UP. The loop redraws only that area each second (drawTimerTick).
+- Host: host/timers.py TimerState (one of timer/stopwatch at a time; a done timer shows for 60s, then clears; consume_done() triggers
+  the notification). Streamer: _wlock serializes writes, command(text), device_state/device_themes from "state" lines, "tm" in samples.
+  menubar.py: Display (View, Layout, Album Pictures, Slideshow, Rotation, Mixed View, Theme (from the device list), Clock on Pictures,
+  Next/Previous Picture, Calibrate Touch…), Pictures (Add Pictures… = osascript choose file -> copied into the photos folder;
+  Choose Photos Folder…; Open Photos Folder), Timer (1/5/10/15/25/60 min, Custom… via rumps.Window, Pause/Resume, Cancel),
+  Stopwatch (Start/Stop, Reset). Check marks follow device_state. The menu bar title shows the running timer, else CPU %.
+- The photos folder defaults to ~/Pictures/µMonitor (created with the sample photo on first use); a single picture is not reloaded.
+- setup.py bundles content/ + PIL + pillow_heif (the app is about 75MB). Headless test pattern: import menubar, build DashboardApp(),
+  call item.callback(None), check streamer.device_state (see the git history of step 19b).
 
 ## Fonts (user request: cleaner font)
 - canvas.setStyle(n) replaces setTextSize: 1 = native 5x7 pixel font (small labels; also the only font with CP437 µ = \xE6),
@@ -247,6 +265,7 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 19b: µMonitor mirrors the device menu (commands + state sync), Pictures submenu, timer/stopwatch on the display; app rebuilt.
 - Step 19: mixed view (photo left/right, compact panels, top-2 strip + clock) verified by webcam.
 - Step 18: album view (photos + motivation, slideshow, edge taps, portrait, clock badge) verified by webcam; menu page 2.
 - Step 17s: streaming from the Mac (themes + RLE pictures), SD removed. Verified: themes 6, pic ok for both folders and the 240x160 size.

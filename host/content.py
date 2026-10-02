@@ -6,6 +6,7 @@ folder 1 = motivation (the bundled pixel-art cards; mNN_name_L.png / _P.png, pic
 import glob
 import json
 import os
+import shutil
 import sys
 
 from PIL import Image, ImageOps
@@ -20,6 +21,7 @@ IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".heic", ".heif", ".gif", ".bmp", ".tif",
 THEME_KEYS = ["surface", "grid", "text", "text2", "series1", "series2", "good", "critical", "separator", "button",
               "accent"]
 CONFIG = os.path.expanduser("~/Library/Application Support/micromonitor/config.json")
+DEFAULT_PHOTOS = os.path.expanduser("~/Pictures/\u00b5Monitor")
 
 
 def content_dir():
@@ -44,7 +46,26 @@ def save_config(cfg):
 
 
 def photos_dir():
-    return load_config().get("photos_dir") or os.path.join(content_dir(), "photos")
+    """The chosen photos folder, or ~/Pictures/µMonitor (created with the sample photo on first use)."""
+    chosen = load_config().get("photos_dir")
+    if chosen and os.path.isdir(chosen):
+        return chosen
+    if not os.path.isdir(DEFAULT_PHOTOS):
+        os.makedirs(DEFAULT_PHOTOS, exist_ok=True)
+        for f in _images(os.path.join(content_dir(), "photos")):
+            shutil.copy2(f, DEFAULT_PHOTOS)
+    return DEFAULT_PHOTOS
+
+
+def add_pictures(paths):
+    """Copy image files into the photos folder; returns how many were added."""
+    dest = photos_dir()
+    n = 0
+    for p in paths:
+        if p.lower().endswith(IMAGE_EXTS) and os.path.isfile(p):
+            shutil.copy2(p, dest)
+            n += 1
+    return n
 
 
 def set_photos_dir(path):
