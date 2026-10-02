@@ -1,7 +1,20 @@
 #include "app.h"
 
 // Album view: full-screen pictures streamed from µMonitor, advancing on a timer or by tapping the edges.
-const uint8_t SLIDE_SECONDS[NUM_SLIDE_OPTIONS] = {5, 10, 30};
+const uint16_t SLIDE_SECONDS[NUM_SLIDE_PRESETS] = {5, 10, 30, 60, 300, 1800};
+
+uint32_t slideSeconds() {
+    if (settings.slideIdx == SLIDE_CUSTOM) return max((uint16_t)1, settings.slideCustom);
+    return SLIDE_SECONDS[min((int)settings.slideIdx, NUM_SLIDE_PRESETS - 1)];
+}
+
+void formatSlide(char *buf, size_t len) {
+    uint32_t s = slideSeconds();
+    const char *prefix = settings.slideIdx == SLIDE_CUSTOM ? "custom" : "every";
+    if (s < 60) snprintf(buf, len, "%s %lus", prefix, (unsigned long)s);
+    else if (s % 60 == 0) snprintf(buf, len, "%s %lu min", prefix, (unsigned long)(s / 60));
+    else snprintf(buf, len, "%s %lum %lus", prefix, (unsigned long)(s / 60), (unsigned long)(s % 60));
+}
 
 static int albumIndex = 0;
 static int albumCount = -1;         // -1 = unknown (nothing fetched yet), 0 = folder is empty
@@ -115,7 +128,7 @@ void albumResetIndex() {
 
 void albumTick() {
     if (settings.view != VIEW_ALBUM || menuOpen || uiBusy) return;
-    uint32_t interval = (uint32_t)SLIDE_SECONDS[settings.slideIdx % NUM_SLIDE_OPTIONS] * 1000;
+    uint32_t interval = slideSeconds() * 1000;
     // Retry soon after a message (e.g. the host just came back); otherwise follow the slideshow interval.
     if (albumCount == 1 && !showingMessage) return;  // a single picture never needs reloading
     if (millis() - lastChange >= (showingMessage ? 3000 : interval)) albumStep(1);

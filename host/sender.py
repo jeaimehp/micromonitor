@@ -59,6 +59,8 @@ class Streamer:
             return
         try:
             self.ser = serial.Serial(port, 115200, timeout=0, write_timeout=1, exclusive=True)
+            # Terminate any half line the device kept from a previous connection, so our first line parses.
+            self.ser.write(b"\n")
             self.connected_port = port
             self.open_error = None
             log(f"connected {port}")

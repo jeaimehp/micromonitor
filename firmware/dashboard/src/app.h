@@ -143,6 +143,8 @@ struct Settings {
     uint8_t focus;      // metric shown large in the Focus layout (0 cpu, 1 ram, 2 disk, 3 net)
     // version 3
     uint8_t clockBadge; // show the clock badge over album pictures
+    // version 4
+    uint16_t slideCustom;  // custom slideshow interval in seconds (slideIdx == SLIDE_CUSTOM)
 };
 
 extern Settings settings;
@@ -185,8 +187,13 @@ void dismissTimer();                // tap on TIME'S UP: back to the clock (also
 bool timerAreaHit(int x, int y);    // is (x, y) on the clock/timer area of the current view?
 
 // ---- Album view (album.cpp) ----
-const int NUM_SLIDE_OPTIONS = 3;
-extern const uint8_t SLIDE_SECONDS[NUM_SLIDE_OPTIONS];
+// Slideshow intervals: 5s, 10s, 30s, 1 min, 5 min, 30 min, then Custom (settings.slideCustom seconds, set from µMonitor).
+const int NUM_SLIDE_PRESETS = 6;
+const int SLIDE_CUSTOM = NUM_SLIDE_PRESETS;  // index of the custom option
+const int NUM_SLIDE_OPTIONS = NUM_SLIDE_PRESETS + 1;
+extern const uint16_t SLIDE_SECONDS[NUM_SLIDE_PRESETS];
+uint32_t slideSeconds();            // the current slideshow interval
+void formatSlide(char *buf, size_t len);  // e.g. "every 30s", "every 5 min", "custom 2m 30s"
 bool portraitActive();              // portrait rotation is in effect (any view; the menu stays landscape)
 void albumShow();                   // (re)draw the current picture
 void albumTick();                   // slideshow timer

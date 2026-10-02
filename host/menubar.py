@@ -21,7 +21,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 VIEWS = ["Dashboard", "Album", "Mixed"]
 LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles"]
 FOLDERS = ["Photos", "Motivation"]
-SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds"]
+SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds", "Every minute", "Every 5 minutes",
+          "Every 30 minutes"]
+SLIDE_CUSTOM = len(SLIDES)  # the device's index for the custom interval
 ROTATIONS = ["Landscape", "Landscape flipped 180°", "Portrait", "Portrait flipped 180°"]
 SIDES = ["Photo on the Left", "Photo on the Right"]
 TIMER_PRESETS = [1, 5, 10, 15, 25, 60]
@@ -63,7 +65,12 @@ class DashboardApp(rumps.App):
         for title, key, labels in [("View", "view", VIEWS), ("Layout", "layout", LAYOUTS),
                                    ("Album Pictures", "folder", FOLDERS), ("Slideshow", "slides", SLIDES),
                                    ("Rotation", "rot", ROTATIONS), ("Mixed View", "side", SIDES)]:
-            self.display.add(self._choice_menu(title, key, labels))
+            menu = self._choice_menu(title, key, labels)
+            if key == "slides":
+                menu.add(None)
+                self.slide_custom_item = rumps.MenuItem("Custom…", callback=self.custom_slideshow)
+                menu.add(self.slide_custom_item)
+            self.display.add(menu)
         self.theme_menu = rumps.MenuItem("Theme")
         self.theme_items = []
         self.display.add(self.theme_menu)
@@ -130,6 +137,28 @@ class DashboardApp(rumps.App):
         if self.send("calibrate"):
             rumps.notification(APP_NAME, "Calibrate the touch screen",
                                "Press the center of each target on the display, one at a time.")
+
+    def custom_slideshow(self, _):
+        current = self.streamer.device_state.get("slidecustom", 120) if self.streamer else 120
+        w = rumps.Window("Show each picture for how many minutes? (decimals OK, e.g. 0.5 = 30 seconds)",
+                         "Custom Slideshow", default_text=f"{current / 60:g}", ok="Set", cancel="Cancel",
+                         dimensions=(200, 24))
+        r = w.run()
+        if not r.clicked:
+            return
+        try:
+            seconds = round(float(r.text.strip()) * 60)
+        except ValueError:
+            return
+        if 1 <= seconds <= 65535:
+            self.send(f"slidecustom {seconds}")
+        else:
+            rumps.notification(APP_NAME, "Slideshow time out of range", "Use between 1 second and 18 hours.")
+
+    @staticmethod
+    def _duration(seconds):
+        m, s = divmod(int(seconds), 60)
+        return " ".join(p for p in (f"{m} min" if m else "", f"{s} s" if s else "") if p) or "0 s"
 
     def _rebuild_themes(self, names):
         if [i.title for i in self.theme_items] == names:
@@ -240,6 +269,9 @@ class DashboardApp(rumps.App):
         for i, item in enumerate(self.theme_items):
             item.state = int(st.get("theme") == i)
         self.badge_item.state = int(st.get("badge", 0) == 1)
+        custom = st.get("slides") == SLIDE_CUSTOM
+        self.slide_custom_item.state = int(custom)
+        self.slide_custom_item.title = (f"Custom ({self._duration(st.get('slidecustom', 0))})…" if custom else "Custom…")
         # Menu bar title: a running timer wins over CPU %.
         if tdesc and s.connected_port:
             self.title = tdesc.split(": ", 1)[1]

@@ -78,7 +78,7 @@ static void describe(int id, ButtonText &t) {
         break;
     case B_SLIDES:
         t.caption = "slideshow";
-        snprintf(t.value, sizeof(t.value), "every %ds", SLIDE_SECONDS[settings.slideIdx]);
+        formatSlide(t.value, sizeof(t.value));
         break;
     case B_ROTATE:
         t.caption = "rotate";
@@ -185,7 +185,10 @@ void menuTap(int x, int y) {
     case B_THEME: applySetting("theme", (settings.themeIdx + 1) % themeCount()); break;
     case B_LAYOUT: applySetting("layout", (settings.layout + 1) % LAYOUT_COUNT); break;
     case B_FOLDER: applySetting("folder", (settings.folder + 1) % NUM_FOLDERS); break;
-    case B_SLIDES: applySetting("slides", (settings.slideIdx + 1) % NUM_SLIDE_OPTIONS); break;
+    case B_SLIDES:
+        // Cycle the presets, then the custom interval (set from µMonitor), then back to the first preset.
+        applySetting("slides", (settings.slideIdx + 1) % NUM_SLIDE_OPTIONS);
+        break;
     case B_ROTATE: applySetting("rot", (rotationIndex() + 1) % 4); break;
     case B_MORE:
     case B_BACK:

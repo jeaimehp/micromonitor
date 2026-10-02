@@ -31,6 +31,7 @@ ap.add_argument("--snapdir", default=".")
 args = ap.parse_args()
 
 ser = serial.Serial(sorted(glob.glob("/dev/cu.usbmodem*"))[0], 115200, timeout=0.1, exclusive=True)
+ser.write(b"\n")  # terminate any half line the device kept from a previous connection
 lock = threading.Lock()
 done = threading.Event()
 t0 = time.time()

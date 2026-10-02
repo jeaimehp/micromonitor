@@ -23,6 +23,10 @@ bool applySetting(const char *key, int v) {
         mixedResetIndex();
     } else if (!strcmp(key, "slides")) {
         settings.slideIdx = constrain(v, 0, NUM_SLIDE_OPTIONS - 1);
+    } else if (!strcmp(key, "slidecustom")) {
+        // Custom interval in seconds (1 s .. 18 h); also selects it.
+        settings.slideCustom = constrain(v, 1, 65535);
+        settings.slideIdx = SLIDE_CUSTOM;
     } else if (!strcmp(key, "rot")) {
         v = constrain(v, 0, 3);
         settings.albumPortrait = v >= 2;
@@ -45,9 +49,9 @@ int currentRotation() {
 }
 
 void reportState() {
-    Serial.printf("state view=%d theme=%d layout=%d folder=%d slides=%d rot=%d badge=%d side=%d themes=",
-                  settings.view, settings.themeIdx, settings.layout, settings.folder, settings.slideIdx, rotationOf(),
-                  settings.clockBadge, settings.mixedSide);
+    Serial.printf("state view=%d theme=%d layout=%d folder=%d slides=%d slidecustom=%d rot=%d badge=%d side=%d themes=",
+                  settings.view, settings.themeIdx, settings.layout, settings.folder, settings.slideIdx, settings.slideCustom,
+                  rotationOf(), settings.clockBadge, settings.mixedSide);
     for (int i = 0; i < themeCount(); i++) Serial.printf("%s%s", i ? "," : "", themeName(i));
     Serial.println();
 }

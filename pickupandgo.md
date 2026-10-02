@@ -276,6 +276,11 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Slideshow intervals (user request): presets 5s/10s/30s/1min/5min/30min (SLIDE_SECONDS) + Custom (index SLIDE_CUSTOM=6,
+  settings.slideCustom seconds, settings v4, default 120). "cmd slidecustom S" sets it and selects it; state adds slidecustom=.
+  slideSeconds()/formatSlide() in album.cpp. µMonitor: Display > Slideshow presets + Custom… (minutes via rumps.Window).
+- FIX: hosts send a bare "\n" right after opening the port (Streamer._open, uitest) so a half line left from a previous connection
+  can't garble the first command.
 - Screenshots: serial "shot" -> screenshot() in gfx.cpp sends "shot W H\r\n" + W*H*3 bytes (RAMRD at 4MHz, 1 dummy byte,
   RGB666 left-aligned), about 19s. tools/uitest.py "shot NAME" saves NAME.png. MISO to the HX8357 WORKS ("tftinfo" reads
   powmode=0x9c, madctl changes with rotation). README portrait images are made this way.

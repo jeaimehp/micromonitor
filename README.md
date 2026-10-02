@@ -155,7 +155,8 @@ because the login item remembers where the app was.
 
 ### On the display
 - **Tap** anywhere to open the menu. It closes after 10 seconds or with CLOSE.
-  - Choose the view (Dashboard / Album / Mixed), theme, layout, album folder, slideshow speed and rotation
+  - Choose the view (Dashboard / Album / Mixed), theme, layout, album folder, slideshow speed (5 s, 10 s, 30 s,
+    1 min, 5 min, 30 min, or a custom time set from µMonitor) and rotation
     (Normal, Flipped, Portrait, Portrait flip). The menu itself always opens in landscape.
   - Under **More…**: the clock badge on pictures, which side the mixed-view photo goes on, and **Calibrate touch**
     (press the 4 targets).

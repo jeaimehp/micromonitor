@@ -684,7 +684,7 @@ void mixedResetIndex() {
 
 void mixedTick() {
     if (settings.view != VIEW_MIXED || menuOpen || uiBusy) return;
-    uint32_t interval = (uint32_t)SLIDE_SECONDS[settings.slideIdx % NUM_SLIDE_OPTIONS] * 1000;
+    uint32_t interval = slideSeconds() * 1000;
     // A single picture never needs reloading; an empty or failed folder is retried every 3s.
     if (mixedCount == 1) return;
     if (millis() - mixedChange >= (mixedCount > 0 ? interval : 3000)) {
