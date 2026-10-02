@@ -86,7 +86,11 @@ static float tmBase = 0;        // seconds at the time the sample arrived (remai
 static bool tmRunning = false;
 static uint32_t tmReceived = 0;
 
+static uint32_t dismissedAt = 0;
+
 void setTimerState(int mode, float seconds, bool running) {
+    // Samples already on their way after a tap-to-dismiss still say "done": ignore those briefly.
+    if (dismissedAt && millis() - dismissedAt < 3000 && mode == TM_TIMER && seconds <= 0) return;
     tmMode = mode;
     tmBase = seconds;
     tmRunning = running;
@@ -111,6 +115,15 @@ bool timerDone() {
 
 bool timerRunning() {
     return tmRunning;
+}
+
+// Tap on a finished timer: back to the clock, and tell µMonitor to cancel it.
+void dismissTimer() {
+    tmMode = TM_NONE;
+    dismissedAt = millis();
+    Serial.println("evt timer_dismiss");
+    if (settings.view == VIEW_ALBUM && !settings.clockBadge) albumShow();  // the badge area needs the picture back
+    else drawTimerTick();
 }
 
 void formatTimer(char *buf, size_t len) {

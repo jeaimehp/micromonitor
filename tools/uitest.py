@@ -62,6 +62,8 @@ def reader():
                 print(f"{time.time() - t0:6.1f} < {line}", flush=True)
                 if line.startswith("req "):
                     serve(line.split())
+                elif line == "evt timer_dismiss":
+                    timers.cancel()
 
 
 def streamer():

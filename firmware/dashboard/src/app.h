@@ -180,6 +180,8 @@ int timerSeconds();
 bool timerDone();
 bool timerRunning();
 void formatTimer(char *buf, size_t len);
+void dismissTimer();                // tap on TIME'S UP: back to the clock (also cancels it in µMonitor)
+bool timerAreaHit(int x, int y);    // is (x, y) on the clock/timer area of the current view?
 
 // ---- Album view (album.cpp) ----
 const int NUM_SLIDE_OPTIONS = 3;
@@ -191,6 +193,7 @@ bool albumTap(int x, int y);        // edges = prev/next; false for the middle (
 void albumResetIndex();
 void pictureStep(int delta);        // next/previous picture in the album or mixed view
 void drawClockBadge();
+bool albumBadgeHit(int x, int y);
 
 // ---- Dashboard view (dashboard_view.cpp) ----
 void ingestSample();            // add the latest metrics to the graph history

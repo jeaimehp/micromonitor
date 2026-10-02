@@ -28,11 +28,18 @@ static void drawMessage(const char *title, const char *line1, const char *line2)
     showingMessage = true;
 }
 
+static const int BADGE_W = 132, BADGE_H = 44;
+
+bool albumBadgeHit(int x, int y) {
+    // A little extra margin around the badge: resistive touch lands a bit off.
+    return x >= tft.width() - BADGE_W - 20 && y >= tft.height() - BADGE_H - 20;
+}
+
 // Rounded clock badge in the bottom-right corner of the picture.
 void drawClockBadge() {
     bool timer = timerMode() != TM_NONE;
     if ((!settings.clockBadge && !timer) || (!clockValid() && !timer) || showingMessage) return;
-    const int bw = 132, bh = 44;
+    const int bw = BADGE_W, bh = BADGE_H;
     int x = tft.width() - bw - 8, y = tft.height() - bh - 8;
     renderRegion(x, y, bw, bh, [&] {
         // The corners outside the rounded badge can't show the picture underneath (it isn't kept in RAM),

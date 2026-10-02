@@ -90,6 +90,8 @@ class Streamer:
                 self._serve(line.split())
             elif line.startswith("state "):
                 self._parse_state(line)
+            elif line == "evt timer_dismiss":
+                self.timers.cancel()  # tapped TIME'S UP on the display
             else:
                 self.last_ack = line
 

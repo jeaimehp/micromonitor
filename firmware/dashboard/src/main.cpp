@@ -253,6 +253,7 @@ void loop() {
     int x, y;
     if (pollTap(x, y)) {
         if (menuOpen) menuTap(x, y);
+        else if (timerDone() && timerAreaHit(x, y)) dismissTimer();
         else {
             bool handled = settings.view == VIEW_ALBUM   ? albumTap(x, y)
                            : settings.view == VIEW_MIXED ? mixedTap(x, y)

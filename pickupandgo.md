@@ -148,6 +148,9 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   arrive, and on "cmd state" (sent by the host on connect). Timer: samples carry "tm":[mode 1=timer|2=stopwatch, seconds, running];
   the device ticks locally and shows it in the dashboard clock tile (drawTimerTile), the mixed compact clock, and the album badge;
   when done it flashes critical red and shows TIME'S UP. The loop redraws only that area each second (drawTimerTick).
+- Tap-to-dismiss (user request): when timerDone(), a tap on the timer area (dashboard clock tile, mixed compact clock, album badge
+  +20px margin; timerAreaHit) calls dismissTimer(): back to the clock + "evt timer_dismiss" -> the host Streamer cancels its timer.
+  The device ignores done-timer states for 3s after a dismiss (samples already in flight).
 - Host: host/timers.py TimerState (one of timer/stopwatch at a time; a done timer shows for 60s, then clears; consume_done() triggers
   the notification). Streamer: _wlock serializes writes, command(text), device_state/device_themes from "state" lines, "tm" in samples.
   menubar.py: Display (View, Layout, Album Pictures, Slideshow, Rotation, Mixed View, Theme (from the device list), Clock on Pictures,
@@ -265,6 +268,7 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Tap TIME'S UP to dismiss (device + host), verified in mixed and album views.
 - Step 19b: µMonitor mirrors the device menu (commands + state sync), Pictures submenu, timer/stopwatch on the display; app rebuilt.
 - Step 19: mixed view (photo left/right, compact panels, top-2 strip + clock) verified by webcam.
 - Step 18: album view (photos + motivation, slideshow, edge taps, portrait, clock badge) verified by webcam; menu page 2.

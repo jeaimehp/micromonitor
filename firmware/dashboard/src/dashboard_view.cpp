@@ -605,6 +605,12 @@ void mixedStep(int delta) {
     drawMixedPhoto();
 }
 
+bool timerAreaHit(int x, int y) {
+    if (settings.view == VIEW_DASHBOARD) return x >= CLOCK_X && y >= tableGeom().y;
+    if (settings.view == VIEW_MIXED) return x >= CLOCK_X && y >= MIX_STRIP_Y;
+    return albumBadgeHit(x, y);
+}
+
 void drawTimerTick() {
     if (settings.view == VIEW_DASHBOARD) drawClock();
     else if (settings.view == VIEW_MIXED) drawMixedClock();
