@@ -116,7 +116,9 @@ void formatClock(char *buf, size_t len) {
 // ---- Main loop ----
 void redrawView() {
     if (uiBusy) return;
-    drawDashboard();
+    applyRotation();
+    if (settings.view == VIEW_ALBUM) albumShow();
+    else drawDashboard();
 }
 
 // Handle one complete line from the host: a JSON sample, or a test command ("tap X Y").
@@ -169,7 +171,7 @@ static void handleLine() {
     stale = false;
     ingestSample();
     uint32_t t0 = millis();
-    bool drawn = !menuOpen && !uiBusy;
+    bool drawn = !menuOpen && !uiBusy && settings.view == VIEW_DASHBOARD;
     if (drawn) drawDashboard();
     Serial.printlnf("ack %lu c=%.1f p=%d draw=%lums free=%lu%s", (unsigned long)samples, metrics.cpu,
                     metrics.numProcs, (unsigned long)(millis() - t0), (unsigned long)System.freeMemory(),
@@ -205,18 +207,22 @@ void loop() {
     }
     if (!stale && millis() - lastSampleMs > STALE_MS) {
         stale = true;
-        if (!menuOpen && !uiBusy) drawDashboardStatus();
+        if (!menuOpen && !uiBusy && settings.view == VIEW_DASHBOARD) drawDashboardStatus();
     }
     // Keep the clock current even when no samples arrive.
     static int lastMinute = -1;
     if (clockValid() && Time.minute() != lastMinute) {
         lastMinute = Time.minute();
-        if (!menuOpen && !uiBusy) drawDashboardStatus();
+        if (!menuOpen && !uiBusy) {
+            if (settings.view == VIEW_ALBUM) drawClockBadge();
+            else drawDashboardStatus();
+        }
     }
+    albumTick();
     int x, y;
     if (pollTap(x, y)) {
         if (menuOpen) menuTap(x, y);
-        else if (!dashboardTap(x, y)) openMenu();
+        else if (settings.view == VIEW_ALBUM ? !albumTap(x, y) : !dashboardTap(x, y)) openMenu();
     }
     menuTick();
 }

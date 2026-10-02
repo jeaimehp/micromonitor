@@ -6,23 +6,33 @@ static uint32_t lastInteraction = 0;
 static const uint32_t MENU_TIMEOUT_MS = 10000;
 
 enum ButtonId {
-    B_CLOSE, B_VIEW_DASH, B_VIEW_ALBUM, B_VIEW_MIXED, B_THEME, B_LAYOUT, B_FOLDER, B_SLIDES, B_ROTATE, B_CALIBRATE,
-    B_COUNT
+    B_CLOSE, B_VIEW_DASH, B_VIEW_ALBUM, B_VIEW_MIXED, B_THEME, B_LAYOUT, B_FOLDER, B_SLIDES, B_ROTATE, B_MORE,
+    B_BADGE, B_SIDE, B_CALIBRATE, B_BACK, B_COUNT
 };
 
 struct Button {
     int16_t x, y, w, h;
+    uint8_t page;  // 0 = main page, 1 = "More" page; 255 = both
 };
 
+static int page = 0;
 static const int ROW_Y[4] = {52, 118, 184, 250};
 static const int ROW_H = 56;
 static const Button BUTTONS[B_COUNT] = {
-    {372, 6, 100, 38},                                      // close
-    {8, ROW_Y[0], 150, ROW_H}, {165, ROW_Y[0], 150, ROW_H}, {322, ROW_Y[0], 150, ROW_H},  // views
-    {8, ROW_Y[1], 228, ROW_H}, {244, ROW_Y[1], 228, ROW_H},  // theme, layout
-    {8, ROW_Y[2], 228, ROW_H}, {244, ROW_Y[2], 228, ROW_H},  // folder, slideshow
-    {8, ROW_Y[3], 228, ROW_H}, {244, ROW_Y[3], 228, ROW_H},  // rotate, calibrate
+    {372, 6, 100, 38, 255},                                                             // close
+    {8, ROW_Y[0], 150, ROW_H, 0}, {165, ROW_Y[0], 150, ROW_H, 0}, {322, ROW_Y[0], 150, ROW_H, 0},  // views
+    {8, ROW_Y[1], 228, ROW_H, 0}, {244, ROW_Y[1], 228, ROW_H, 0},                       // theme, layout
+    {8, ROW_Y[2], 228, ROW_H, 0}, {244, ROW_Y[2], 228, ROW_H, 0},                       // folder, slideshow
+    {8, ROW_Y[3], 228, ROW_H, 0}, {244, ROW_Y[3], 228, ROW_H, 0},                       // rotate, more
+    {8, ROW_Y[0], 228, ROW_H, 1}, {244, ROW_Y[0], 228, ROW_H, 1},                       // clock badge, photo side
+    {8, ROW_Y[1], 228, ROW_H, 1}, {244, ROW_Y[3], 228, ROW_H, 1},                       // calibrate, back
 };
+
+static const char *const ROTATION_NAMES[4] = {"Normal", "Flipped", "Portrait", "Portrait flip"};
+
+static int rotationIndex() {
+    return (settings.albumPortrait ? 2 : 0) + (settings.flip ? 1 : 0);
+}
 
 // Caption (small, top line) and value (large) for each button; enabled = false greys it out with a reason.
 struct ButtonText {
@@ -45,12 +55,12 @@ static void describe(int id, ButtonText &t) {
         t.selected = settings.view == VIEW_DASHBOARD;
         break;
     case B_VIEW_ALBUM:
-        t.caption = "needs SD card";
+        t.caption = "view";
         strcpy(t.value, "Album");
-        t.enabled = false;
+        t.selected = settings.view == VIEW_ALBUM;
         break;
     case B_VIEW_MIXED:
-        t.caption = "needs SD card";
+        t.caption = "coming next";
         strcpy(t.value, "Mixed");
         t.enabled = false;
         break;
@@ -59,28 +69,40 @@ static void describe(int id, ButtonText &t) {
         strlcpy(t.value, theme.name, sizeof(t.value));
         break;
     case B_LAYOUT:
-        t.caption = "layout";
+        t.caption = "dashboard layout";
         strcpy(t.value, LAYOUT_NAMES[settings.layout]);
         break;
     case B_FOLDER:
-        t.caption = "album folder (needs SD)";
-        strcpy(t.value, "-");
-        t.enabled = false;
+        t.caption = "album pictures";
+        strcpy(t.value, FOLDER_NAMES[settings.folder]);
         break;
     case B_SLIDES:
-        t.caption = "slideshow (needs SD)";
-        strcpy(t.value, "-");
-        t.enabled = false;
+        t.caption = "slideshow";
+        snprintf(t.value, sizeof(t.value), "every %ds", SLIDE_SECONDS[settings.slideIdx]);
         break;
     case B_ROTATE:
-        t.caption = "rotate 180";
-        strcpy(t.value, settings.flip ? "Flipped" : "Normal");
+        t.caption = "rotate (portrait: album)";
+        strcpy(t.value, ROTATION_NAMES[rotationIndex()]);
+        break;
+    case B_MORE: strcpy(t.value, "More..."); break;
+    case B_BADGE:
+        t.caption = "clock on pictures";
+        strcpy(t.value, settings.clockBadge ? "On" : "Off");
+        break;
+    case B_SIDE:
+        t.caption = "mixed view photo";
+        strcpy(t.value, settings.mixedSide ? "Right" : "Left");
         break;
     case B_CALIBRATE:
         t.caption = "touch";
         strcpy(t.value, "Calibrate");
         break;
+    case B_BACK: strcpy(t.value, "Back"); break;
     }
+}
+
+static bool onPage(int id) {
+    return BUTTONS[id].page == 255 || BUTTONS[id].page == page;
 }
 
 static void drawMenu() {
@@ -88,10 +110,11 @@ static void drawMenu() {
     canvas.setTextSize(2);
     canvas.setTextColor(theme.text);
     canvas.setCursor(16, 17);
-    canvas.print("MENU");
+    canvas.print(page ? "MENU > MORE" : "MENU");
     canvas.drawFastHLine(0, 47, SCREEN_W, theme.grid);
 
     for (int id = 0; id < B_COUNT; id++) {
+        if (!onPage(id)) continue;
         const Button &b = BUTTONS[id];
         ButtonText t;
         describe(id, t);
@@ -119,6 +142,7 @@ static int hitTest(int x, int y) {
     // Accept taps a few pixels outside a button: resistive touch lands a little off.
     const int SLOP = 4;
     for (int id = 0; id < B_COUNT; id++) {
+        if (!onPage(id)) continue;
         const Button &b = BUTTONS[id];
         if (x >= b.x - SLOP && x < b.x + b.w + SLOP && y >= b.y - SLOP && y < b.y + b.h + SLOP) return id;
     }
@@ -127,6 +151,8 @@ static int hitTest(int x, int y) {
 
 void openMenu() {
     menuOpen = true;
+    page = 0;
+    applyRotation();  // the menu is always landscape, even over a portrait album
     lastInteraction = millis();
     renderStrips(drawMenu);
     Serial.println("menu open");
@@ -151,7 +177,8 @@ void menuTap(int x, int y) {
     Serial.printlnf("menu button %d", id);
     switch (id) {
     case B_VIEW_DASH:
-        settings.view = VIEW_DASHBOARD;
+    case B_VIEW_ALBUM:
+        settings.view = id == B_VIEW_DASH ? VIEW_DASHBOARD : VIEW_ALBUM;
         saveSettings();
         closeMenu();
         return;
@@ -166,10 +193,34 @@ void menuTap(int x, int y) {
         settings.layout = (settings.layout + 1) % LAYOUT_COUNT;
         saveSettings();
         break;
-    case B_ROTATE:
-        settings.flip = !settings.flip;
+    case B_FOLDER:
+        settings.folder = (settings.folder + 1) % NUM_FOLDERS;
+        albumResetIndex();
+        saveSettings();
+        break;
+    case B_SLIDES:
+        settings.slideIdx = (settings.slideIdx + 1) % NUM_SLIDE_OPTIONS;
+        saveSettings();
+        break;
+    case B_ROTATE: {
+        int r = (rotationIndex() + 1) % 4;
+        settings.albumPortrait = r >= 2;
+        settings.flip = r & 1;
         saveSettings();
         applyRotation();
+        break;
+    }
+    case B_MORE:
+    case B_BACK:
+        page = id == B_MORE ? 1 : 0;
+        break;
+    case B_BADGE:
+        settings.clockBadge = !settings.clockBadge;
+        saveSettings();
+        break;
+    case B_SIDE:
+        settings.mixedSide = !settings.mixedSide;
+        saveSettings();
         break;
     case B_CALIBRATE:
         uiBusy = true;

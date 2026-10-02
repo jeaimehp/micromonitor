@@ -52,12 +52,12 @@ public:
     Canvas() : Adafruit_GFX(1, 1) {}
     void resize(int16_t w, int16_t h);  // buffer size; also the logical drawing size until setOrigin()
     // Draw in full-screen coordinates: buffer row 0 maps to screen (x, y). GFX clips text against the logical
-    // size, so it is widened to the full screen here.
+    // size, so it is widened to cover the screen in landscape (480x320) and portrait (320x480).
     void setOrigin(int16_t x, int16_t y) {
         ox = x;
         oy = y;
         _width = SCREEN_W;
-        _height = SCREEN_H;
+        _height = SCREEN_W;
     }
     void drawPixel(int16_t x, int16_t y, uint16_t color) override;
     void fillScreen(uint16_t color) override;
@@ -105,6 +105,7 @@ void applyTheme(int i);  // also used at boot; out-of-range indexes fall back to
 void applyRotation();
 void printRight(const char *text, int right, int y);
 void printCentered(const char *text, int cx, int y);
+void formatDate(char *buf, size_t len);  // "Fri Oct 2" (no double space before single-digit days)
 // Render the screen rectangle (x, y, w, h): draw() uses absolute screen coordinates and is called once per
 // horizontal strip that fits the canvas buffer.
 void renderRegion(int x, int y, int w, int h, std::function<void()> draw);
@@ -133,6 +134,8 @@ struct Settings {
     Calibration cal;
     // version 2
     uint8_t focus;      // metric shown large in the Focus layout (0 cpu, 1 ram, 2 disk, 3 net)
+    // version 3
+    uint8_t clockBadge; // show the clock badge over album pictures
 };
 
 extern Settings settings;
@@ -158,6 +161,16 @@ void handlePictureHeader(const char *line);
 bool picturePending();              // a "pic" header arrived; its binary payload is next on the serial port
 // Fetch picture n of a folder at w x h and draw it at (x, y). count = pictures in the folder (0 = none).
 bool fetchPicture(int folder, int n, int x, int y, int w, int h, int &count);
+
+// ---- Album view (album.cpp) ----
+const int NUM_SLIDE_OPTIONS = 3;
+extern const uint8_t SLIDE_SECONDS[NUM_SLIDE_OPTIONS];
+bool portraitActive();              // album in portrait: the only view that rotates to portrait
+void albumShow();                   // (re)draw the current picture
+void albumTick();                   // slideshow timer
+bool albumTap(int x, int y);        // edges = prev/next; false for the middle (opens the menu)
+void albumResetIndex();
+void drawClockBadge();
 
 // ---- Dashboard view (dashboard_view.cpp) ----
 void ingestSample();            // add the latest metrics to the graph history

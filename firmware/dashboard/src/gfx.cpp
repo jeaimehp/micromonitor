@@ -55,6 +55,7 @@ void applyTheme(int i) {
 }
 
 void gfxBegin() {
+    canvas.cp437(true);  // the classic font is code page 437, which has the micro sign at 0xE6
     tft.begin(SPI_FREQ);
     applyRotation();
     tft.fillScreen(theme.separator);
@@ -62,7 +63,9 @@ void gfxBegin() {
 
 void applyRotation() {
     // Rotation 3 is upright as the wing is mounted; 1 is the same landscape turned 180 degrees.
-    tft.setRotation(settings.flip ? 1 : 3);
+    // Portrait (album only) uses 0, or 2 when flipped.
+    if (portraitActive()) tft.setRotation(settings.flip ? 2 : 0);
+    else tft.setRotation(settings.flip ? 1 : 3);
 }
 
 void Canvas::resize(int16_t w, int16_t h) {
@@ -128,6 +131,11 @@ void printRight(const char *text, int right, int y) {
     canvas.getTextBounds(text, 0, 0, &bx, &by, &bw, &bh);
     canvas.setCursor(right - bw, y);
     canvas.print(text);
+}
+
+void formatDate(char *buf, size_t len) {
+    strlcpy(buf, Time.format(Time.now(), "%a %b %e").c_str(), len);
+    for (char *q = strstr(buf, "  "); q; q = strstr(buf, "  ")) memmove(q, q + 1, strlen(q));
 }
 
 void printCentered(const char *text, int cx, int y) {

@@ -314,7 +314,7 @@ static void drawClockTile(int y) {
     if (clockValid()) {
         strlcpy(hm, Time.format(Time.now(), "%l:%M").c_str(), sizeof(hm));
         strlcpy(ampm, Time.format(Time.now(), "%p").c_str(), sizeof(ampm));
-        strlcpy(date, Time.format(Time.now(), "%a %b %e").c_str(), sizeof(date));
+        formatDate(date, sizeof(date));
     } else {
         strcpy(hm, "--:--");
         ampm[0] = 0;
@@ -338,10 +338,7 @@ static void drawClockTile(int y) {
     }
     canvas.setTextSize(2);
     canvas.setTextColor(theme.text2);
-    char *d = date;
-    // Collapse the double space %e leaves before single-digit days.
-    for (char *q = strstr(d, "  "); q; q = strstr(d, "  ")) memmove(q, q + 1, strlen(q));
-    printCentered(d, cx, ty + 32 + 10);
+    printCentered(date, cx, ty + 32 + 10);
 }
 
 static void drawClock() {

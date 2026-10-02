@@ -42,14 +42,17 @@ static bool readRawPress(float &rx, float &ry) {
 static void rawToScreen(float rx, float ry, int &x, int &y) {
     const Calibration &c = settings.cal;
     float u = c.swap ? ry : rx, v = c.swap ? rx : ry;
-    x = INSET + (int)((u - c.uL) * (SCREEN_W - 1 - 2 * INSET) / (c.uR - c.uL));
-    y = INSET + (int)((v - c.vT) * (SCREEN_H - 1 - 2 * INSET) / (c.vB - c.vT));
-    if (settings.flip) {
-        x = SCREEN_W - 1 - x;
-        y = SCREEN_H - 1 - y;
+    int sx = INSET + (int)((u - c.uL) * (SCREEN_W - 1 - 2 * INSET) / (c.uR - c.uL));
+    int sy = INSET + (int)((v - c.vT) * (SCREEN_H - 1 - 2 * INSET) / (c.vB - c.vT));
+    sx = constrain(sx, 0, SCREEN_W - 1);
+    sy = constrain(sy, 0, SCREEN_H - 1);
+    // (sx, sy) is in the rotation-3 frame; convert to the current rotation (derived from the HX8357 MADCTL bits).
+    switch (tft.getRotation()) {
+    case 1: x = SCREEN_W - 1 - sx; y = SCREEN_H - 1 - sy; break;
+    case 0: x = sy; y = SCREEN_W - 1 - sx; break;
+    case 2: x = SCREEN_H - 1 - sy; y = sx; break;
+    default: x = sx; y = sy; break;
     }
-    x = constrain(x, 0, SCREEN_W - 1);
-    y = constrain(y, 0, SCREEN_H - 1);
 }
 
 void injectTap(int x, int y) {
