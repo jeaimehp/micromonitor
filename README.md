@@ -169,6 +169,12 @@ because the login item remembers where the app was.
 
 µMonitor lives in the menu bar as a small monitor icon with the current CPU % (or a running timer's countdown).
 
+| Main menu | Timer |
+|---|---|
+| ![µMonitor main menu](docs/images/menubar_main.png) | ![Timer submenu](docs/images/menubar_timer.png) |
+| **Display** (mirrors the touch menu) | **Pictures** |
+| ![Display submenu](docs/images/menubar_display.png) | ![Pictures submenu](docs/images/menubar_pictures.png) |
+
 - **Display**: the same settings as the touch menu, plus Next/Previous Picture and Calibrate Touch…
 - **Pictures**: Add Pictures… (copied into `~/Pictures/µMonitor`), Choose Photos Folder…, Open Photos Folder.
   JPG, PNG, HEIC and more are supported. Photos take 1–3 s to load and paint in from the top.
