@@ -35,7 +35,7 @@ Each step ends with: test, git commit, update this file.
 | 2 | Display bring-up: HX8357 driver, pin map, test pattern (user confirms visually) | DONE (verified by webcam) |
 | 3 | Host collector: metrics as JSON lines every 2s | DONE (done early, while blocked on login) |
 | 4 | Serial link host->device, parse + ack, auto-reconnect | DONE |
-| 5 | Dashboard frame + CPU graph | TODO |
+| 5 | Dashboard frame + CPU graph | DONE |
 | 6 | RAM graph | TODO |
 | 7 | Disk graph (usage + I/O) | TODO |
 | 8 | Network graph (rx/tx) | TODO |
@@ -47,7 +47,7 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-4 are complete. Next: step 5 (dashboard frame + CPU graph). The device currently shows a temporary text status screen (drawStatus).
+Steps 0-5 are complete. Next: step 6 (RAM graph): set panels[1].numSeries=1, push metrics.ram, value text e.g. "18.2/68.7G 48%".
 Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
 After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
 Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
@@ -72,6 +72,16 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - SPI runs at 32 MHz with no visible glitches. Pushing about 480x280 px takes about 185 ms in total.
 - RAM: about 30 KB free after the canvas (shown as `free` on the status screen).
 
+## Dashboard code structure (firmware/dashboard/src/dashboard.cpp)
+- `Panel panels[4]` = CPU (0,0), RAM (240,0), DISK (0,105), NET (240,105), each 240x105. numSeries 0 = "pending" placeholder.
+  fixedMax 100 for %; 0 = autoscale (floor 1.0). Ring history of 113 samples, 2px per sample, newest on the right.
+- `pushSample(panel, a, b)` + set `panel.value` (headline text, top right) inside `updateDashboard()`, which redraws all 4 panels.
+- Process table area is y 210..320 (drawTablePlaceholder for now). Step 9 replaces it.
+- Theme (from the dataviz skill's validated palette, dark mode): surface #1a1a19, grid #383835, text #fff / #c3c2b7,
+  series 1 blue #3987e5, series 2 orange #d95926 (this pair passes the CVD and contrast validator). 2-series panels need a legend
+  (colored swatch + text label in the text color, never colored text).
+- A full 4-panel redraw takes about 136 ms.
+
 ## Running
 - `.venv/bin/python host/sender.py -v [--count N] [--port P]` collects every 2s and writes JSON lines to the first `/dev/cu.usbmodem*`.
   It prints device replies (`ack N c=.. p=.. draw=..ms`, or `err N`) and reconnects on its own (tested with `particle usb reset`).
@@ -83,6 +93,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 5: panel framework + CPU graph; verified with an 8x `yes` burst (about 50% plateau on 18 cores) by webcam.
 - Step 4: JSON parse (Device OS JSONValue) + ack. Switched to canvas+DMA rendering (2945ms -> 185ms). Reconnect tested.
 - Step 2: test pattern verified by webcam; switched to rotation 3.
 - Step 1: Device OS 1.5.2 flashed, hello firmware heartbeat confirmed over USB serial.

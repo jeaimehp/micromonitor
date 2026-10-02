@@ -149,28 +149,138 @@ public:
 
 Canvas canvas;
 
-// ---- Drawing ----
-void drawStatus() {
-    canvas.resize(480, 40);
-    for (int row = 0; row < 7; row++) {
-        canvas.fillScreen(HX8357_BLACK);
-        canvas.setTextSize(2);
-        canvas.setTextColor(HX8357_WHITE);
-        canvas.setCursor(10, 12);
-        if (row == 0) {
-            canvas.printf("samples %lu errors %lu free %lu", (unsigned long)samples, (unsigned long)parseErrors,
-                          (unsigned long)System.freeMemory());
-        } else if (row == 1) {
-            canvas.printf("cpu %5.1f%%  ram %5.1f%%  disk %5.1f%%", metrics.cpu, metrics.ram, metrics.disk);
-        } else {
-            int i = row - 2;
-            if (i < metrics.numProcs) {
-                const Proc &p = metrics.procs[i];
-                canvas.printf("%-16s %6.1f %5.1f", p.name, p.cpu, p.mem);
-            }
-        }
-        canvas.push(0, row * 40);
+// ---- Theme (dark chart surface; series colors validated for CVD separation and contrast) ----
+constexpr uint16_t rgb(uint32_t hex) {
+    return ((hex >> 8) & 0xF800) | ((hex >> 5) & 0x07E0) | ((hex >> 3) & 0x001F);
+}
+const uint16_t C_SURFACE = rgb(0x1a1a19);
+const uint16_t C_GRID = rgb(0x383835);
+const uint16_t C_TEXT = rgb(0xffffff);
+const uint16_t C_TEXT2 = rgb(0xc3c2b7);
+const uint16_t C_SERIES[2] = {rgb(0x3987e5), rgb(0xd95926)};
+
+// ---- Graph panels ----
+const int PANEL_W = 240;
+const int PANEL_H = 105;
+const int GRAPH_X = 8;
+const int GRAPH_Y = 30;
+const int GRAPH_W = 224;
+const int GRAPH_H = 68;
+const int STEP_PX = 2;
+const int HISTORY = GRAPH_W / STEP_PX + 1;  // 113 samples, about 3.7 minutes at 2s
+
+struct Panel {
+    const char *title;
+    int x, y;
+    int numSeries;            // 0 = not implemented yet (placeholder)
+    float fixedMax;           // > 0: fixed scale (e.g. 100 for %); 0: autoscale
+    float hist[2][HISTORY];
+    int count;                // number of valid samples (<= HISTORY)
+    int head;                 // index of the next write
+    char value[24];           // headline value text, top right
+};
+
+Panel panels[4] = {
+    {"CPU", 0, 0, 1, 100.0f},
+    {"RAM", PANEL_W, 0, 0, 100.0f},
+    {"DISK", 0, PANEL_H, 0, 0.0f},
+    {"NET", PANEL_W, PANEL_H, 0, 0.0f},
+};
+Panel &cpuPanel = panels[0];
+
+void pushSample(Panel &p, float a, float b = 0) {
+    p.hist[0][p.head] = a;
+    p.hist[1][p.head] = b;
+    p.head = (p.head + 1) % HISTORY;
+    if (p.count < HISTORY) p.count++;
+}
+
+// Value of series s, i samples back from the newest (i = 0 is newest).
+float histAt(const Panel &p, int s, int i) {
+    return p.hist[s][(p.head - 1 - i + HISTORY) % HISTORY];
+}
+
+void drawPanel(const Panel &p) {
+    canvas.resize(PANEL_W, PANEL_H);
+    canvas.fillScreen(C_SURFACE);
+    // 2px separators on the right and bottom edges keep the panels visually apart.
+    canvas.fillRect(PANEL_W - 2, 0, 2, PANEL_H, rgb(0x000000));
+    canvas.fillRect(0, PANEL_H - 2, PANEL_W, 2, rgb(0x000000));
+
+    canvas.setTextSize(2);
+    canvas.setTextColor(C_TEXT2);
+    canvas.setCursor(GRAPH_X, 7);
+    canvas.print(p.title);
+
+    if (p.numSeries == 0) {
+        canvas.setTextSize(1);
+        canvas.setCursor(GRAPH_X, GRAPH_Y + GRAPH_H / 2);
+        canvas.print("pending");
+        canvas.push(p.x, p.y);
+        return;
     }
+
+    canvas.setTextColor(C_TEXT);
+    int16_t bx, by;
+    uint16_t bw, bh;
+    canvas.getTextBounds(p.value, 0, 0, &bx, &by, &bw, &bh);
+    canvas.setCursor(GRAPH_X + GRAPH_W - bw, 7);
+    canvas.print(p.value);
+
+    // Scale: fixed, or autoscaled to the visible max with a small floor so idle noise stays flat.
+    float maxV = p.fixedMax;
+    if (maxV <= 0) {
+        maxV = 1.0f;
+        for (int s = 0; s < p.numSeries; s++)
+            for (int i = 0; i < p.count; i++) maxV = max(maxV, histAt(p, s, i));
+    }
+
+    // Recessive grid: quarter lines plus a baseline.
+    for (int g = 1; g <= 3; g++) {
+        int gy = GRAPH_Y + GRAPH_H * g / 4;
+        for (int gx = GRAPH_X; gx < GRAPH_X + GRAPH_W; gx += 4) canvas.drawPixel(gx, gy, C_GRID);
+    }
+    canvas.drawFastHLine(GRAPH_X, GRAPH_Y + GRAPH_H, GRAPH_W, C_GRID);
+    canvas.drawFastHLine(GRAPH_X, GRAPH_Y, GRAPH_W, C_GRID);
+
+    // Lines (2px), newest sample at the right edge.
+    int baseY = GRAPH_Y + GRAPH_H;
+    for (int s = 0; s < p.numSeries; s++) {
+        int prevX = -1, prevY = 0;
+        for (int i = p.count - 1; i >= 0; i--) {
+            float v = constrain(histAt(p, s, i), 0.0f, maxV);
+            int x = GRAPH_X + GRAPH_W - 1 - i * STEP_PX;
+            int y = baseY - 1 - (int)(v / maxV * (GRAPH_H - 2));
+            if (prevX >= 0) {
+                canvas.drawLine(prevX, prevY, x, y, C_SERIES[s]);
+                canvas.drawLine(prevX, prevY - 1, x, y - 1, C_SERIES[s]);
+            }
+            prevX = x;
+            prevY = y;
+        }
+    }
+    canvas.push(p.x, p.y);
+}
+
+void drawTablePlaceholder() {
+    canvas.resize(480, 40);
+    canvas.fillScreen(C_SURFACE);
+    canvas.setTextSize(1);
+    canvas.setTextColor(C_TEXT2);
+    canvas.setCursor(GRAPH_X, 8);
+    canvas.print("TOP PROCESSES  pending");
+    canvas.push(0, 2 * PANEL_H);
+    canvas.fillScreen(C_SURFACE);
+    for (int y = 2 * PANEL_H + 40; y < 320; y += 40) {
+        canvas.fillScreen(C_SURFACE);
+        canvas.push(0, y);
+    }
+}
+
+void updateDashboard() {
+    pushSample(cpuPanel, metrics.cpu);
+    snprintf(cpuPanel.value, sizeof(cpuPanel.value), "%.1f%%", metrics.cpu);
+    for (const Panel &p : panels) drawPanel(p);
 }
 
 void setup() {
@@ -184,10 +294,8 @@ void setup() {
     tft.begin(SPI_FREQ);
     tft.setRotation(3);  // landscape 480x320, flipped to match how the wing is mounted
     tft.fillScreen(HX8357_BLACK);
-    tft.setTextSize(2);
-    tft.setTextColor(HX8357_WHITE);
-    tft.setCursor(10, 10);
-    tft.print("waiting for host...");
+    for (const Panel &p : panels) drawPanel(p);
+    drawTablePlaceholder();
 }
 
 void loop() {
@@ -199,7 +307,7 @@ void loop() {
     }
     samples++;
     uint32_t t0 = millis();
-    drawStatus();
+    updateDashboard();
     Serial.printlnf("ack %lu c=%.1f p=%d draw=%lums", (unsigned long)samples, metrics.cpu, metrics.numProcs,
                     (unsigned long)(millis() - t0));
 }
