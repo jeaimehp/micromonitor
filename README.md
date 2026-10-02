@@ -165,6 +165,10 @@ because the login item remembers where the app was.
 - **TIME'S UP**: tap the timer to go back to the clock.
 
 ### In the µMonitor menu
+![µMonitor in the menu bar](docs/images/menubar_icon.png)
+
+µMonitor lives in the menu bar as a small monitor icon with the current CPU % (or a running timer's countdown).
+
 - **Display**: the same settings as the touch menu, plus Next/Previous Picture and Calibrate Touch…
 - **Pictures**: Add Pictures… (copied into `~/Pictures/µMonitor`), Choose Photos Folder…, Open Photos Folder.
   JPG, PNG, HEIC and more are supported. Photos take 1–3 s to load and paint in from the top.
