@@ -1,7 +1,7 @@
 #include "app.h"
 
 static const uint32_t SETTINGS_MAGIC = 0x584D4F4E;  // "XMON"
-static const uint8_t SETTINGS_VERSION = 4;
+static const uint8_t SETTINGS_VERSION = 5;
 static const int SETTINGS_ADDR = 0;
 
 Settings settings;
@@ -14,6 +14,7 @@ static void defaults() {
     settings.slideIdx = 1;
     settings.clockBadge = 1;
     settings.slideCustom = 120;
+    settings.lcarsPhoto = 1;
     // Calibration measured on this wing (step 12); "Calibrate touch" in the menu replaces it.
     settings.cal = {1, 3562, 286, 516, 3537};
 }
@@ -34,6 +35,7 @@ void loadSettings() {
     }
     if (settings.version < 3) settings.clockBadge = 1;
     if (settings.version < 4) settings.slideCustom = 120;
+    if (settings.version < 5) settings.lcarsPhoto = 1;
     if (settings.layout >= LAYOUT_COUNT) settings.layout = LAYOUT_QUAD;
     if (settings.folder >= NUM_FOLDERS) settings.folder = 0;
     if (settings.slideIdx >= NUM_SLIDE_OPTIONS) settings.slideIdx = 1;

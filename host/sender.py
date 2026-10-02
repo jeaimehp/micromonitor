@@ -153,7 +153,8 @@ class Streamer:
             if self.ser is None:
                 self._open()
                 if self.ser is not None:
-                    self.command("state")  # so the app menu can show the device's current settings
+                    self.command("themes")  # refresh the device's theme list from this app's content
+                    self.command("state")   # so the app menu can show the device's current settings
                 if self.ser is None:
                     log("device not found, retrying")
                     self.on_status(self)

@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Mirrors of the device menu; the device reports each setting as the index of its option.
 VIEWS = ["Dashboard", "Album", "Mixed"]
-LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles"]
+LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles", "LCARS"]
 FOLDERS = ["Photos", "Motivation"]
 SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds", "Every minute", "Every 5 minutes",
           "Every 30 minutes"]
@@ -76,6 +76,9 @@ class DashboardApp(rumps.App):
         self.display.add(self.theme_menu)
         self.badge_item = rumps.MenuItem("Clock on Pictures", callback=self.toggle_badge)
         self.display.add(self.badge_item)
+        self.lphoto_item = rumps.MenuItem("Photo in LCARS Layout",
+                                          callback=lambda item: self.send(f"lphoto {0 if item.state else 1}"))
+        self.display.add(self.lphoto_item)
         self.display.add(None)
         self.display.add(rumps.MenuItem("Next Picture", callback=lambda _: self.send("next")))
         self.display.add(rumps.MenuItem("Previous Picture", callback=lambda _: self.send("prev")))
@@ -269,6 +272,7 @@ class DashboardApp(rumps.App):
         for i, item in enumerate(self.theme_items):
             item.state = int(st.get("theme") == i)
         self.badge_item.state = int(st.get("badge", 0) == 1)
+        self.lphoto_item.state = int(st.get("lphoto", 0) == 1)
         custom = st.get("slides") == SLIDE_CUSTOM
         self.slide_custom_item.state = int(custom)
         self.slide_custom_item.title = (f"Custom ({self._duration(st.get('slidecustom', 0))})…" if custom else "Custom…")

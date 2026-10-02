@@ -118,7 +118,7 @@ void albumStep(int delta) {
 
 void pictureStep(int delta) {
     if (settings.view == VIEW_ALBUM) albumStep(delta);
-    else if (settings.view == VIEW_MIXED) mixedStep(delta);
+    else mixedStep(delta);  // mixed view, or a dashboard layout with a photo slot (LCARS)
 }
 
 void albumResetIndex() {

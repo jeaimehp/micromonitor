@@ -14,7 +14,7 @@ import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 KEYS = ["surface", "grid", "text", "text2", "series1", "series2", "good", "critical", "separator", "button", "accent"]
-LAYOUTS = ["quad", "stacked", "focus", "tiles"]
+LAYOUTS = ["quad", "stacked", "focus", "tiles", "lcars"]
 BUILTIN = ["Dark", "Light"]
 
 THEMES = [
@@ -39,6 +39,11 @@ THEMES = [
     dict(name="Solarized", layout="stacked", surface="002b36", grid="0b4452", text="fdf6e3", text2="93a1a1",
          series1="268bd2", series2="cb4b16", good="859900", critical="dc322f", separator="001f27",
          button="073642", accent="268bd2"),
+    # LCARS: black screen with the classic orange / lavender / peach frame (accent / button / text); the data colors
+    # (series) are darker blue/orange variants that pass the validator on black.
+    dict(name="LCARS", layout="lcars", surface="000000", grid="2b2b45", text="ffcc99", text2="cc99cc",
+         series1="6f86f5", series2="d9772e", good="99cc66", critical="cc4444", separator="000000",
+         button="cc99cc", accent="ff9900"),
     dict(name="High Contrast", layout="tiles", surface="000000", grid="666666", text="ffffff", text2="e6e6e6",
          series1="3987e5", series2="c98500", good="0ca30c", critical="ff4040", separator="4d4d4d",
          button="1a1a1a", accent="ffffff"),
@@ -85,6 +90,9 @@ def main():
 
     out = os.path.join(ROOT, "content", "themes")
     os.makedirs(out, exist_ok=True)
+    for old in os.listdir(out):  # theme numbering shifts when themes are added; don't leave stale files behind
+        if old.endswith(".thm"):
+            os.remove(os.path.join(out, old))
     for i, t in enumerate(THEMES):
         with open(os.path.join(out, f"{i:02d}_{slug(t['name'])}.thm"), "w") as f:
             f.write(f"# Xenon dashboard theme. Colors are RGB hex; layout is one of {', '.join(LAYOUTS)}.\n")

@@ -7,7 +7,7 @@ static const uint32_t MENU_TIMEOUT_MS = 10000;
 
 enum ButtonId {
     B_CLOSE, B_VIEW_DASH, B_VIEW_ALBUM, B_VIEW_MIXED, B_THEME, B_LAYOUT, B_FOLDER, B_SLIDES, B_ROTATE, B_MORE,
-    B_BADGE, B_SIDE, B_CALIBRATE, B_BACK, B_COUNT
+    B_BADGE, B_SIDE, B_CALIBRATE, B_LPHOTO, B_BACK, B_COUNT
 };
 
 struct Button {
@@ -25,7 +25,8 @@ static const Button BUTTONS[B_COUNT] = {
     {8, ROW_Y[2], 228, ROW_H, 0}, {244, ROW_Y[2], 228, ROW_H, 0},                       // folder, slideshow
     {8, ROW_Y[3], 228, ROW_H, 0}, {244, ROW_Y[3], 228, ROW_H, 0},                       // rotate, more
     {8, ROW_Y[0], 228, ROW_H, 1}, {244, ROW_Y[0], 228, ROW_H, 1},                       // clock badge, photo side
-    {8, ROW_Y[1], 228, ROW_H, 1}, {244, ROW_Y[3], 228, ROW_H, 1},                       // calibrate, back
+    {8, ROW_Y[1], 228, ROW_H, 1}, {244, ROW_Y[1], 228, ROW_H, 1},                       // calibrate, LCARS photo
+    {244, ROW_Y[3], 228, ROW_H, 1},                                                     // back
 };
 
 static const char *const ROTATION_NAMES[4] = {"Normal", "Flipped", "Portrait", "Portrait flip"};
@@ -96,6 +97,10 @@ static void describe(int id, ButtonText &t) {
     case B_CALIBRATE:
         t.caption = "touch";
         strcpy(t.value, "Calibrate");
+        break;
+    case B_LPHOTO:
+        t.caption = "photo in LCARS layout";
+        strcpy(t.value, settings.lcarsPhoto ? "On" : "Off");
         break;
     case B_BACK: strcpy(t.value, "Back"); break;
     }
@@ -196,6 +201,7 @@ void menuTap(int x, int y) {
         break;
     case B_BADGE: applySetting("badge", !settings.clockBadge); break;
     case B_SIDE: applySetting("side", !settings.mixedSide); break;
+    case B_LPHOTO: applySetting("lphoto", !settings.lcarsPhoto); break;
     case B_CALIBRATE:
         uiBusy = true;
         runCalibration();

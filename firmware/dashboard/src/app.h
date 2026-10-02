@@ -76,7 +76,7 @@ private:
     int16_t baseline = 0;
 };
 
-enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_COUNT };
+enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_LCARS, LAYOUT_COUNT };
 extern const char *const LAYOUT_NAMES[LAYOUT_COUNT];
 
 // Theme as stored (RGB888, in the same order as the .thm keys), and as used for drawing (RGB565).
@@ -145,6 +145,8 @@ struct Settings {
     uint8_t clockBadge; // show the clock badge over album pictures
     // version 4
     uint16_t slideCustom;  // custom slideshow interval in seconds (slideIdx == SLIDE_CUSTOM)
+    // version 5
+    uint8_t lcarsPhoto;    // show a slideshow photo in the LCARS layout
 };
 
 extern Settings settings;
@@ -213,6 +215,7 @@ void mixedShow();               // mixed view: full redraw including the photo
 void mixedTick();               // mixed view slideshow
 bool mixedTap(int x, int y);    // photo = next picture; false elsewhere (opens the menu)
 void mixedResetIndex();
+void dashboardPhoto();              // draw the dashboard's photo slot, if its layout has one (LCARS)
 void mixedStep(int delta);
 void drawTimerTick();               // refresh only the clock/timer area of the current view
 

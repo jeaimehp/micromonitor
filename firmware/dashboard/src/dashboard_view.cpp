@@ -424,6 +424,241 @@ static void drawTable() {
     drawClock();
 }
 
+// ---- LCARS layout: elbow frame + sidebar, time/date, CPU/GPU and RAM gauges, optional photo ----
+struct LcarsGeom {
+    int W, H, side, bar;
+    Rect timeBox, photo, cpuBox, ramBox;
+};
+
+static LcarsGeom lcarsGeom() {
+    LcarsGeom g;
+    g.W = tft.width();
+    g.H = tft.height();
+    g.bar = 24;
+    const bool photo = settings.lcarsPhoto;
+    if (g.H > g.W) {  // portrait: content x 76..312
+        g.side = 64;
+        g.timeBox = {76, 32, 236, 96};
+        g.photo = photo ? Rect{76, 128, 236, 148} : Rect{0, 0, 0, 0};
+        g.cpuBox = photo ? Rect{76, 276, 236, 86} : Rect{76, 128, 236, 160};
+        g.ramBox = photo ? Rect{76, 362, 236, 86} : Rect{76, 288, 236, 160};
+    } else {  // landscape: content x 108..472
+        g.side = 96;
+        g.timeBox = photo ? Rect{108, 32, 210, 104} : Rect{108, 32, 364, 104};
+        g.photo = photo ? Rect{318, 32, 154, 104} : Rect{0, 0, 0, 0};
+        g.cpuBox = {108, 136, 364, 76};
+        g.ramBox = {108, 212, 364, 76};
+    }
+    return g;
+}
+
+static bool lcarsActive() {
+    return settings.view == VIEW_DASHBOARD && settings.layout == LAYOUT_LCARS;
+}
+
+// "Stardate" for fun: year.day-of-year, e.g. 2026.275.
+static void formatStardate(char *buf, size_t len) {
+    static const int CUM[12] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+    int y = Time.year(), m = Time.month(), d = Time.day();
+    int doy = CUM[m - 1] + d + ((m > 2 && (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0))) ? 1 : 0);
+    snprintf(buf, len, "STARDATE %d.%03d", y, doy);
+}
+
+// The frame: top and bottom elbows, the sidebar blocks with small readouts, bar segments and the title.
+static void drawLcarsFrame(const LcarsGeom &g) {
+    const int W = g.W, H = g.H, S = g.side, B = g.bar, E = 64;  // E = elbow height
+    const uint16_t black = theme.surface;
+    canvas.fillRect(0, 0, W, H, black);
+    for (int k = 0; k < 2; k++) {  // k = 0 top elbow, 1 bottom elbow (mirrored vertically)
+        uint16_t c = theme.accent;
+        int y0 = k ? H - E : 0;
+        int barY = k ? H - B : 0;
+        canvas.fillRect(32, y0, S - 32, E, c);                    // core
+        canvas.fillRect(0, k ? y0 : 32, S, E - 32, c);             // vertical arm
+        canvas.fillCircle(32, k ? H - 33 : 32, 32, c);             // rounded outer corner
+        canvas.fillRect(S, barY, 40, B, c);                         // horizontal arm
+        // Concave inner corner where the arm meets the sidebar.
+        int cy = k ? H - B - 12 : B + 12;
+        canvas.fillRect(S, k ? H - B - 12 : B, 12, 12, c);
+        canvas.fillCircle(S + 12, cy, 12, black);
+        // Bar segments after the arm, a short accent segment, then a black gap holding the text, and an end cap.
+        const char *text = k ? (stale ? (samples ? "NO HOST DATA" : "WAITING") : "LINK ACTIVE") : "SYSTEM STATUS";
+        canvas.setStyle(2);
+        int16_t bx, by;
+        uint16_t tw, th;
+        canvas.getTextBounds(text, 0, 0, &bx, &by, &tw, &th);
+        int textX = W - 16 - tw;                 // text sits between textX and W - 16
+        int seg2 = textX - 8 - 22;               // short accent segment just before the text gap
+        int x = S + 44;
+        canvas.fillRect(x, barY, seg2 - 4 - x, B, k ? theme.text : theme.button);
+        canvas.fillRect(seg2, barY, 22, B, theme.accent);
+        canvas.fillRoundRect(W - 10, barY, 10, B, 5, theme.accent);
+        canvas.setTextColor(k ? (stale ? theme.critical : theme.text) : theme.accent);
+        canvas.cursor(textX, barY + (B - 13) / 2);
+        canvas.print(text);
+    }
+    // Sidebar blocks between the elbows, each with a small readout in black.
+    const int top = E + 4, bottom = H - E - 4, n = 4, gap = 4;
+    const int bh = (bottom - top - gap * (n - 1)) / n;
+    const uint16_t colors[4] = {theme.button, theme.text, theme.accent, theme.button};
+    char labels[4][20];
+    snprintf(labels[0], 20, "DISK %.0f%%", metrics.disk);
+    float net = metrics.netRx + metrics.netTx;
+    if (net < 1000) snprintf(labels[1], 20, "NET %.0fK", net);
+    else snprintf(labels[1], 20, "NET %.1fM", net / 1000);
+    snprintf(labels[2], 20, "IO %.1fM", metrics.diskRead + metrics.diskWrite);
+    snprintf(labels[3], 20, "%.8s", metrics.numProcs ? metrics.procs[0].name : "--");
+    for (char *c = labels[3]; *c; c++) *c = toupper(*c);
+    for (int i = 0; i < n; i++) {
+        int by = top + i * (bh + gap);
+        canvas.fillRect(0, by, S, bh, colors[i]);
+        canvas.setStyle(1);
+        canvas.setTextColor(black);
+        printRight(labels[i], S - 4, by + bh - 11);
+        char code[8];
+        snprintf(code, sizeof(code), "%02d-%d", i + 1, 100 + i * 47);
+        printRight(code, S - 4, by + 3);
+    }
+}
+
+// Pill-shaped gauge: track in the grid color, filled to frac in color.
+static void lcarsBar(int x, int y, int w, int h, float frac, uint16_t color) {
+    canvas.fillRoundRect(x, y, w, h, h / 2, theme.grid);
+    int fw = (int)(constrain(frac, 0.0f, 1.0f) * w);
+    if (fw > 0) canvas.fillRoundRect(x, y, max(fw, h), h, h / 2, color);
+}
+
+static void drawLcarsTime(const LcarsGeom &g) {
+    Rect r = g.timeBox;
+    canvas.fillRect(r.x, r.y, r.w, r.h, theme.surface);
+    char big[12], ampm[4] = "", date[20], star[24];
+    const char *label = NULL;
+    if (timerMode() != TM_NONE) {
+        formatTimer(big, sizeof(big));
+        label = timerDone() ? "TIME'S UP" : timerMode() == TM_TIMER ? "TIMER" : "STOPWATCH";
+    } else if (clockValid()) {
+        strlcpy(big, Time.format(Time.now(), "%l:%M").c_str(), sizeof(big));
+        strlcpy(ampm, Time.format(Time.now(), "%p").c_str(), sizeof(ampm));
+    } else {
+        strcpy(big, "--:--");
+    }
+    char *t = big;
+    while (*t == ' ') t++;
+    if (clockValid()) {
+        formatDate(date, sizeof(date));
+        for (char *c = date; *c; c++) *c = toupper(*c);
+        formatStardate(star, sizeof(star));
+    } else {
+        strcpy(date, "AWAITING TIME");
+        star[0] = 0;
+    }
+    bool flash = timerDone() && (millis() / 500) % 2;
+    int16_t bx, by;
+    uint16_t tw, th;
+    canvas.setStyle(4);
+    canvas.getTextBounds(t, 0, 0, &bx, &by, &tw, &th);
+    int ty = r.y + (label ? 22 : 12);
+    if (label) {
+        canvas.setStyle(1);
+        canvas.setTextColor(flash ? theme.critical : theme.text2);
+        canvas.cursor(r.x + 4, r.y + 8);
+        canvas.print(label);
+    }
+    canvas.setStyle(4);
+    canvas.setTextColor(flash ? theme.critical : theme.accent);
+    canvas.cursor(r.x + 4, ty);
+    canvas.print(t);
+    if (ampm[0]) {
+        canvas.setStyle(2);
+        canvas.setTextColor(theme.accent);
+        canvas.cursor(r.x + 4 + tw + 5, ty + 12);
+        canvas.print(ampm);
+    }
+    canvas.setStyle(2);
+    canvas.setTextColor(theme.text2);
+    if (r.w >= 300) {  // wide: date and stardate on the right
+        printRight(date, r.x + r.w - 4, r.y + 14);
+        canvas.setStyle(1);
+        canvas.setTextColor(theme.text);
+        printRight(star, r.x + r.w - 4, r.y + 38);
+    } else {
+        canvas.cursor(r.x + 4, ty + 38);
+        canvas.print(date);
+        canvas.setStyle(1);
+        canvas.setTextColor(theme.text);
+        canvas.cursor(r.x + 4, ty + 60);
+        canvas.print(star);
+    }
+    // A thin divider under the box, LCARS style.
+    canvas.fillRoundRect(r.x, r.y + r.h - 6, r.w, 3, 1, theme.button);
+}
+
+// Metric box: title + value header, one or two labeled gauges, and a history graph if there is room.
+static void drawLcarsMetric(Rect r, const Panel &p, const char *title, const char *value, int gauges,
+                            const char *const labels[2], const float values[2]) {
+    canvas.fillRect(r.x, r.y, r.w, r.h, theme.surface);
+    canvas.setStyle(2);
+    canvas.setTextColor(theme.text2);
+    canvas.cursor(r.x + 4, r.y + 6);
+    canvas.print(title);
+    canvas.setTextColor(theme.text);
+    printRight(value, r.x + r.w - 4, r.y + 6);
+    int y = r.y + 28;
+    for (int i = 0; i < gauges; i++) {
+        canvas.setStyle(1);
+        canvas.setTextColor(theme.text2);
+        canvas.cursor(r.x + 4, y + 2);
+        canvas.print(labels[i]);
+        char pct[8];
+        snprintf(pct, sizeof(pct), "%.0f%%", values[i]);
+        canvas.setTextColor(theme.text);
+        printRight(pct, r.x + r.w - 4, y + 2);
+        lcarsBar(r.x + 32, y, r.w - 32 - 36, 12, values[i] / 100.0f, theme.series[i]);
+        y += 18;
+    }
+    int gh = r.y + r.h - 8 - (y + 4);
+    if (gh >= 14) drawGraph(p, r.x + 7, y + 7, r.w - 14, gh - 6, r.w > 300 ? 180 : 113, false);
+}
+
+static void drawLcarsCpu(const LcarsGeom &g) {
+    static const char *const L[2] = {"CPU", "GPU"};
+    float v[2] = {metrics.cpu, metrics.gpu};
+    char value[20];
+    snprintf(value, sizeof(value), "%.0f%% / %.0f%%", metrics.cpu, metrics.gpu);
+    drawLcarsMetric(g.cpuBox, cpuPanel, "CPU / GPU", value, 2, L, v);
+}
+
+static void drawLcarsRam(const LcarsGeom &g) {
+    static const char *const L[2] = {"RAM", ""};
+    float v[2] = {metrics.ram, 0};
+    char value[24];
+    snprintf(value, sizeof(value), "%.1f / %.0f GB", metrics.ramUsed, metrics.ramTotal);
+    drawLcarsMetric(g.ramBox, ramPanel, "MEMORY", value, 1, L, v);
+}
+
+static void lcarsRegion(Rect r, std::function<void()> f) {
+    if (r.w > 0) renderRegion(r.x, r.y, r.w, r.h, f);
+}
+
+// Everything except the photo (which is fetched separately, so samples don't reload it).
+static void drawLcars() {
+    LcarsGeom g = lcarsGeom();
+    const int W = g.W, H = g.H, S = g.side, B = g.bar;
+    // Frame regions: left strip (sidebar + gap), top and bottom bars, right margin.
+    lcarsRegion({0, 0, S + 12, H}, [&] { drawLcarsFrame(g); });
+    lcarsRegion({S + 12, 0, W - S - 12, B + 8}, [&] { drawLcarsFrame(g); });
+    lcarsRegion({S + 12, H - B - 8, W - S - 12, B + 8}, [&] { drawLcarsFrame(g); });
+    lcarsRegion({W - 8, B + 8, 8, H - 2 * B - 16}, [&] { drawLcarsFrame(g); });
+    lcarsRegion(g.timeBox, [&] { drawLcarsTime(g); });
+    lcarsRegion(g.cpuBox, [&] { drawLcarsCpu(g); });
+    lcarsRegion(g.ramBox, [&] { drawLcarsRam(g); });
+}
+
+static void drawLcarsTimeOnly() {
+    LcarsGeom g = lcarsGeom();
+    lcarsRegion(g.timeBox, [&] { drawLcarsTime(g); });
+}
+
 // ---- Layouts ----
 // Focus layout geometry: the main panel, then a row of 3 mini tiles (tap one to focus it).
 struct FocusGeom {
@@ -443,6 +678,10 @@ static void focusOthers(int others[3]) {
 void drawDashboard() {
     const bool tall = portrait();
     const int W = tft.width();
+    if (settings.layout == LAYOUT_LCARS) {
+        drawLcars();
+        return;
+    }
     switch (settings.layout) {
     case LAYOUT_STACKED: {
         const int h = tall ? 64 : 58;
@@ -484,12 +723,19 @@ void drawDashboard() {
 }
 
 void drawDashboardStatus() {
+    if (settings.layout == LAYOUT_LCARS) {
+        drawLcars();  // the frame shows the link status; cheap enough to redraw whole (the photo is untouched)
+        return;
+    }
     int y = tableGeom().y;
     renderRegion(0, y, TABLE_W, TABLE_HEADER_H, [&] { drawTableHeader(y); });
     drawClock();
 }
 
+bool mixedTap(int x, int y);
+
 bool dashboardTap(int x, int y) {
+    if (settings.layout == LAYOUT_LCARS) return mixedTap(x, y);  // tap the photo for the next one
     FocusGeom g = focusGeom();
     if (settings.layout != LAYOUT_FOCUS || y < g.tileY || y >= g.tileY + g.tileH) return false;
     int others[3];
@@ -548,8 +794,16 @@ static void photoMessage(Rect p, const char *text) {
     });
 }
 
+// The photo slot of the current view: the mixed view's photo, or the LCARS layout's optional photo.
+static Rect photoSlot() {
+    if (settings.view == VIEW_MIXED) return mixGeom().photo;
+    if (lcarsActive() && settings.lcarsPhoto) return lcarsGeom().photo;
+    return {0, 0, 0, 0};
+}
+
 static void drawMixedPhoto() {
-    Rect p = mixGeom().photo;
+    Rect p = photoSlot();
+    if (p.w == 0) return;
     mixedChange = millis();
     if (stale) {
         photoMessage(p, "photos need \xE6Monitor");
@@ -657,6 +911,7 @@ void mixedShow() {
 }
 
 void mixedStep(int delta) {
+    if (photoSlot().w == 0) return;
     if (mixedCount > 0) mixedIndex = (mixedIndex + delta + mixedCount) % mixedCount;
     drawMixedPhoto();
 }
@@ -666,13 +921,15 @@ static bool inRect(Rect r, int x, int y) {
 }
 
 bool timerAreaHit(int x, int y) {
+    if (lcarsActive()) return inRect(lcarsGeom().timeBox, x, y);
     if (settings.view == VIEW_DASHBOARD) return inRect(clockRect(), x, y);
     if (settings.view == VIEW_MIXED) return inRect(mixGeom().clock, x, y);
     return albumBadgeHit(x, y);
 }
 
 void drawTimerTick() {
-    if (settings.view == VIEW_DASHBOARD) drawClock();
+    if (lcarsActive()) drawLcarsTimeOnly();
+    else if (settings.view == VIEW_DASHBOARD) drawClock();
     else if (settings.view == VIEW_MIXED) drawMixedClock();
     else drawClockBadge();
 }
@@ -682,8 +939,12 @@ void mixedResetIndex() {
     mixedCount = -1;
 }
 
+void dashboardPhoto() {
+    if (photoSlot().w > 0) drawMixedPhoto();
+}
+
 void mixedTick() {
-    if (settings.view != VIEW_MIXED || menuOpen || uiBusy) return;
+    if (settings.view == VIEW_ALBUM || photoSlot().w == 0 || menuOpen || uiBusy) return;
     uint32_t interval = slideSeconds() * 1000;
     // A single picture never needs reloading; an empty or failed folder is retried every 3s.
     if (mixedCount == 1) return;
@@ -695,7 +956,7 @@ void mixedTick() {
 
 // Tap on the photo = next picture; anywhere else opens the menu (returns false).
 bool mixedTap(int x, int y) {
-    if (!inRect(mixGeom().photo, x, y)) return false;
+    if (!inRect(photoSlot(), x, y)) return false;
     if (mixedCount > 0) mixedIndex = (mixedIndex + 1) % mixedCount;
     drawMixedPhoto();
     return true;

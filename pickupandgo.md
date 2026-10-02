@@ -276,6 +276,15 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- LCARS (user request; priorities CPU/GPU, RAM, time+date, photo optional): theme "LCARS" (layout=lcars) in make_themes.py
+  (frame colors accent #ff9900 / button #cc99cc / text #ffcc99; series #6f86f5/#d9772e pass the validator on black). LAYOUT_LCARS is
+  index 4 ("LCARS"). dashboard_view.cpp: lcarsGeom() (landscape side 96, portrait 64; bars 24; timeBox/photo/cpuBox/ramBox),
+  drawLcarsFrame (elbows, bar segments sized around the title/status text, 4 sidebar blocks with DISK/NET/IO/top-process readouts),
+  drawLcarsTime (time or timer, date, STARDATE year.doy), drawLcarsMetric (pill gauges + graph if room). The photo slot is
+  shared with the mixed view via photoSlot() (mixedTick/mixedTap/mixedStep work for both); redrawView calls dashboardPhoto().
+  Settings v5 adds lcarsPhoto ("cmd lphoto", More > photo in LCARS layout, µMonitor Display > Photo in LCARS Layout).
+- "cmd themes" makes the device re-request themes; hosts send it on connect (fixes a stale theme list after updating µMonitor).
+  make_themes.py deletes old .thm files first (theme numbering shifts when a theme is added).
 - Slideshow intervals (user request): presets 5s/10s/30s/1min/5min/30min (SLIDE_SECONDS) + Custom (index SLIDE_CUSTOM=6,
   settings.slideCustom seconds, settings v4, default 120). "cmd slidecustom S" sets it and selects it; state adds slidecustom=.
   slideSeconds()/formatSlide() in album.cpp. µMonitor: Display > Slideshow presets + Custom… (minutes via rumps.Window).

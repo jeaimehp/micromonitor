@@ -134,7 +134,10 @@ void redrawView() {
     applyRotation();
     if (settings.view == VIEW_ALBUM) albumShow();
     else if (settings.view == VIEW_MIXED) mixedShow();
-    else drawDashboard();
+    else {
+        drawDashboard();
+        dashboardPhoto();
+    }
 }
 
 // Handle one complete line from the host: a JSON sample, or a test command ("tap X Y").

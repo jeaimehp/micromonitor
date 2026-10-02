@@ -20,12 +20,23 @@ from the display's memory:
 |---|---|---|---|
 | ![Portrait mixed](docs/images/portrait_mixed.png) | ![Portrait quad](docs/images/portrait_quad.png) | ![Portrait tiles](docs/images/portrait_tiles.png) | ![Portrait album](docs/images/portrait_album.png) |
 
+### LCARS theme
+
+A Star Trek–style screen: the elbow frame and sidebar (with disk, network, I/O and top-process readouts), the time,
+date and a "stardate", CPU/GPU and memory gauges, and an optional slideshow photo (tap it for the next one; turn it off
+under More → *photo in LCARS layout*, or µMonitor **Display → Photo in LCARS Layout**). Pick it with **Theme → LCARS**.
+
+| Landscape with photo | Landscape, no photo | Portrait |
+|---|---|---|
+| ![LCARS landscape](docs/images/lcars_landscape.png) | ![LCARS without photo](docs/images/lcars_nophoto.png) | ![LCARS portrait](docs/images/lcars_portrait.png) |
+
 ## Features
 
 - **Live graphs**, refreshed every 2 seconds: CPU and GPU utilization, RAM, disk read/write and usage, network rx/tx
 - **Top 5 processes** with CPU and memory, plus a **date/time tile**
-- **4 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers)
-- **8 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, High Contrast (colorblind-safe graph colors)
+- **5 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
+  and **LCARS** (see below)
+- **9 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, High Contrast (colorblind-safe graph colors)
 - **Album view**: a slideshow of your photos or the built-in pixel-art "motivation" cards; tap the edges for
   previous/next; optional clock badge
 - **Landscape or portrait**: every view has a portrait layout too; stand the display upright and choose Portrait

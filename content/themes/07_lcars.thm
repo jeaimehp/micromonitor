@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles, lcars.
+name=LCARS
+layout=lcars
+surface=#000000
+grid=#2b2b45
+text=#ffcc99
+text2=#cc99cc
+series1=#6f86f5
+series2=#d9772e
+good=#99cc66
+critical=#cc4444
+separator=#000000
+button=#cc99cc
+accent=#ff9900

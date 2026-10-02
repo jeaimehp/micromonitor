@@ -35,6 +35,8 @@ bool applySetting(const char *key, int v) {
         settings.clockBadge = v ? 1 : 0;
     } else if (!strcmp(key, "side")) {
         settings.mixedSide = v ? 1 : 0;
+    } else if (!strcmp(key, "lphoto")) {
+        settings.lcarsPhoto = v ? 1 : 0;
     } else {
         return false;
     }
@@ -49,9 +51,9 @@ int currentRotation() {
 }
 
 void reportState() {
-    Serial.printf("state view=%d theme=%d layout=%d folder=%d slides=%d slidecustom=%d rot=%d badge=%d side=%d themes=",
+    Serial.printf("state view=%d theme=%d layout=%d folder=%d slides=%d slidecustom=%d rot=%d badge=%d side=%d lphoto=%d themes=",
                   settings.view, settings.themeIdx, settings.layout, settings.folder, settings.slideIdx, settings.slideCustom,
-                  rotationOf(), settings.clockBadge, settings.mixedSide);
+                  rotationOf(), settings.clockBadge, settings.mixedSide, settings.lcarsPhoto);
     for (int i = 0; i < themeCount(); i++) Serial.printf("%s%s", i ? "," : "", themeName(i));
     Serial.println();
 }
@@ -64,6 +66,10 @@ void handleCommand(const char *line) {
     if (n < 1) return;
     if (!strcmp(key, "state")) {
         reportState();
+        return;
+    }
+    if (!strcmp(key, "themes")) {
+        requestThemes();  // the host's theme list may have changed (e.g. a newer µMonitor)
         return;
     }
     if (!strcmp(key, "calibrate")) {
