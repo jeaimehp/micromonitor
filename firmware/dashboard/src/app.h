@@ -100,6 +100,7 @@ extern Canvas canvas;
 extern Theme theme;
 
 void gfxBegin();
+void screenshot();                   // serial "shot": stream the frame memory to the host
 uint8_t *canvasBytes();              // the canvas buffer as raw bytes (CANVAS_PIXELS * 2)
 void pushRaw(int x, int y, int w, int h);  // send w*h big-endian pixels from canvasBytes() as-is
 ThemeSpec BUILTIN_DEFAULT_SPEC();

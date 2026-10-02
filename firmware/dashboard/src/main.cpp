@@ -7,7 +7,7 @@ SYSTEM_THREAD(ENABLED);
 // streamed pictures slow (a full screen is 300 KB). Device OS calls this hook at startup.
 HAL_USB_USART_Config acquireUSBSerialBuffer() {
     static uint8_t rxBuf[4096];
-    static uint8_t txBuf[512];
+    static uint8_t txBuf[2048];  // large enough for screenshot rows
     HAL_USB_USART_Config conf = {};
     conf.size = sizeof(conf);
     conf.rx_buffer = rxBuf;
@@ -154,6 +154,16 @@ static void handleLine() {
     }
     if (!strncmp(lineBuf, "pic ", 4)) {
         handlePictureHeader(lineBuf);
+        return;
+    }
+    if (!strcmp(lineBuf, "shot")) {
+        screenshot();
+        return;
+    }
+    if (!strcmp(lineBuf, "tftinfo")) {
+        // Read-back test: these only make sense if the display's data-out (MISO) line is connected.
+        Serial.printlnf("tftinfo powmode=0x%02x madctl=0x%02x colmod=0x%02x rotation=%d", tft.readcommand8(HX8357_RDPOWMODE),
+                        tft.readcommand8(HX8357_RDMADCTL), tft.readcommand8(HX8357_RDCOLMOD), tft.getRotation());
         return;
     }
     int benchBytes;

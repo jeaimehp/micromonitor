@@ -126,6 +126,36 @@ void Canvas::push(int16_t x, int16_t y) {
     tft.endWrite();
 }
 
+// Screenshot: read the display's frame memory (RAMRD) and send it over USB serial as
+// "shot <w> <h>\n" + w*h*3 bytes (R, G, B; 6 significant bits each, left-aligned), in the current rotation.
+void screenshot() {
+    const int w = tft.width(), h = tft.height();
+    uint8_t *row = canvasBytes();  // reuse the canvas buffer (w*3 <= 1440 bytes)
+    SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));  // reads need a slow clock
+    auto command = [](uint8_t c) {
+        digitalWrite(TFT_DC, LOW);
+        SPI.transfer(c);
+        digitalWrite(TFT_DC, HIGH);
+    };
+    digitalWrite(TFT_CS, LOW);
+    command(HX8357_CASET);
+    SPI.transfer(0); SPI.transfer(0); SPI.transfer((w - 1) >> 8); SPI.transfer((w - 1) & 0xFF);
+    command(HX8357_PASET);
+    SPI.transfer(0); SPI.transfer(0); SPI.transfer((h - 1) >> 8); SPI.transfer((h - 1) & 0xFF);
+    command(HX8357_RAMRD);
+    SPI.transfer(0);  // dummy byte before the pixel data
+    Serial.printlnf("shot %d %d", w, h);
+    // One DMA transfer per row (the TX half of the canvas buffer is zero-filled), then send it.
+    uint8_t *zeros = row + 2048;
+    memset(zeros, 0, w * 3);
+    for (int y = 0; y < h; y++) {
+        SPI.transfer(zeros, row, w * 3, NULL);
+        Serial.write(row, w * 3);
+    }
+    digitalWrite(TFT_CS, HIGH);
+    SPI.endTransaction();
+}
+
 uint8_t *canvasBytes() {
     return (uint8_t *)canvasBuf;
 }

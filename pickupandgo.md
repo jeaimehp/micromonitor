@@ -276,6 +276,9 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Screenshots: serial "shot" -> screenshot() in gfx.cpp sends "shot W H\r\n" + W*H*3 bytes (RAMRD at 4MHz, 1 dummy byte,
+  RGB666 left-aligned), about 19s. tools/uitest.py "shot NAME" saves NAME.png. MISO to the HX8357 WORKS ("tftinfo" reads
+  powmode=0x9c, madctl changes with rotation). README portrait images are made this way.
 - Portrait layouts for all views (dashboard x4 + mixed), verified by webcam with the display stood upright.
 - Public GitHub repo github.com/jeaimehp/micromonitor (MIT, Je'aime Powell). History was rewritten before the first push: the Apple Sonoma
   wallpaper sample was removed (not redistributable) and the device serial redacted; a local tag `pre-public-backup` holds the old

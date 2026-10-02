@@ -13,6 +13,13 @@ its own touch menu.
 | **Mixed view** (photo + dashboard) | **Timer in the clock tile** |
 | ![Mixed view](docs/images/mixed.jpg) | ![Timer](docs/images/timer.jpg) |
 
+**Portrait** (stand the display upright and choose Rotation → Portrait). These are pixel-exact screenshots read back
+from the display's memory:
+
+| Mixed | Quad | Tiles | Album |
+|---|---|---|---|
+| ![Portrait mixed](docs/images/portrait_mixed.png) | ![Portrait quad](docs/images/portrait_quad.png) | ![Portrait tiles](docs/images/portrait_tiles.png) | ![Portrait album](docs/images/portrait_album.png) |
+
 ## Features
 
 - **Live graphs**, refreshed every 2 seconds: CPU and GPU utilization, RAM, disk read/write and usage, network rx/tx
@@ -181,6 +188,12 @@ subfolders. A file that can't be decoded is skipped.
   the firmware), and checks text contrast. Rebuild the app (and reflash if you changed a built-in theme).
 - **Pixel art**: sprites and captions live in `tools/make_pixelart.py` (ASCII-art sprites).
   `.venv/bin/python tools/make_pixelart.py` regenerates `content/motivation/`.
+
+## Screenshots
+
+The firmware can read its frame memory back over USB (the FeatherWing wires the display's data-out line).
+With µMonitor quit, run `.venv/bin/python tools/uitest.py "wait 5, shot NAME" --snapdir DIR` to save `DIR/NAME.png`
+in the current orientation. It takes about 20 seconds; the display keeps its picture while it's read.
 
 ## Troubleshooting
 
