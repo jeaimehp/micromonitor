@@ -31,7 +31,7 @@ Each step ends with: test, git commit, update this file.
 | # | Step | Status |
 |---|------|--------|
 | 0 | Project setup: git, venv, tools | DONE |
-| 1 | Device bring-up: Device OS 1.5.2, hello firmware, USB serial heartbeat | TODO |
+| 1 | Device bring-up: Device OS 1.5.2, hello firmware, USB serial heartbeat | DONE |
 | 2 | Display bring-up: HX8357 driver, pin map, test pattern (user confirms visually) | TODO |
 | 3 | Host collector: metrics as JSON lines every 2s | DONE (done early, while blocked on login) |
 | 4 | Serial link host->device, parse + ack, auto-reconnect | TODO |
@@ -47,11 +47,18 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0 and 3 are complete. Step 1 is BLOCKED: the user said they logged in, but `particle whoami` still reports
-"not logged in". Ask the user to run `! /Users/jeaimehp/.hermes/node/bin/particle whoami` and, if needed, log in again.
-Do NOT read ~/.particle config files (the permission policy blocks reading credentials).
+Steps 0, 1 and 3 are complete. Next: step 2 (display bring-up).
 Display verification: the user approved WEBCAM verification. A Logitech C920 ("HD Pro Webcam C920") is pointed at the screen.
 Use imagesnap (brew) for this; there is also an OBSBOT camera, so select the device by name.
+Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
+
+## Device / firmware facts
+- The Xenon now runs Device OS 1.5.2 (installed with `particle update --target 1.5.2`). Cloud compile for xenon@1.5.2 works.
+- Build and flash any firmware project: `firmware/flash.sh firmware/<proj>` (cloud compile + `flash --local --application-only`).
+  The device leaves DFU by itself after flashing. Its serial port is `/dev/cu.usbmodem2101` (it may change, so glob `/dev/cu.usbmodem*`).
+  The port takes a few seconds to appear after flashing.
+- Firmware uses SYSTEM_MODE(MANUAL) + SYSTEM_THREAD(ENABLED) (no mesh/cloud). The status LED may show listening/blue; that is expected.
+- firmware/hello: prints "hello N os=1.5.2" every 1s. Verified.
 
 ## Host collector protocol (host/collector.py)
 - Test with `.venv/bin/python host/collector.py 3`, which prints 3 lines (one per 2s; 0 means run forever).
@@ -60,5 +67,6 @@ Use imagesnap (brew) for this; there is also an OBSBOT camera, so select the dev
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 1: Device OS 1.5.2 flashed, hello firmware heartbeat confirmed over USB serial.
 - Step 3: collector.py verified: `yes` shows at 99.9% in the top-5, disk % matches df.
 - Step 0: git init, .venv with psutil and pyserial, dfu-util via brew, particle-cli via npm. Xenon is visible in DFU.
