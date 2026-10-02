@@ -94,7 +94,9 @@ extern Canvas canvas;
 extern Theme theme;
 
 void gfxBegin();
-int themeCount();
+ThemeSpec BUILTIN_DEFAULT_SPEC();
+bool builtinThemeNamed(const char *name);
+int themeCount();                    // built-in themes, then themes from the SD card
 const char *themeName(int i);
 void applyTheme(int i);  // also used at boot; out-of-range indexes fall back to theme 0
 void applyRotation();
@@ -140,6 +142,21 @@ bool touchBegin();
 bool pollTap(int &x, int &y);
 void injectTap(int x, int y);   // serial "tap X Y" command, for testing without a finger
 bool runCalibration();          // false if abandoned (30s without a press)
+
+// ---- SD card (sdstore.cpp) ----
+class FatFile;
+const int NUM_FOLDERS = 2;          // 0 = /photos, 1 = /motivation
+const int MAX_SD_THEMES = 12;
+extern const char *const FOLDERS[NUM_FOLDERS];
+bool sdBegin();
+bool sdReady();
+bool sdPoll();                      // retry mounting every 5s; true when the card just became available
+int sdThemeCount();
+const ThemeSpec &sdTheme(int i);
+int pictureCount(int folder, bool portrait);
+bool pictureName(int folder, int n, bool portrait, char *out, size_t len);
+bool openPicture(int folder, const char *name, FatFile &f);
+void sdInfo();                      // serial "sdinfo" command
 
 // ---- Dashboard view (dashboard_view.cpp) ----
 void ingestSample();            // add the latest metrics to the graph history

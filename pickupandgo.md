@@ -48,9 +48,12 @@ Each step ends with: test, git commit, update this file.
 | 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | DONE |
 | 15b | Date/time (user request): host sends local time, firmware clock; shown on dashboard header, album badge (menu toggle), mixed | DONE for dashboard (album badge + mixed come with steps 18/19) |
 | 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | DONE (copied + ejected; user asked to move it to the wing) |
-| 17 | Firmware SD support: list folders, load themes from SD | TODO |
+| 17 | Firmware SD support: list folders, load themes from SD | IN PROGRESS |
 | 18 | Album view: slideshow, tap left/right edge = prev/next, middle = menu | TODO |
 | 19 | Mixed view: half-size photo + compact graphs | TODO |
+| 19b | Timer + stopwatch (user request): µMonitor menu (timer presets 1/5/10/15/25/60 min + custom, pause/resume, cancel;
+stopwatch start/pause/reset) -> sent in samples as state (start epoch, duration, paused/running); the device ticks it locally every 1s
+and shows a large-digit banner over any view; at zero it flashes TIME'S UP and µMonitor posts a macOS notification | TODO |
 | 20 | Soak test with view switching, docs | TODO |
 
 ## Phase 2 spec (steps 12-20, approved by the user)
@@ -80,7 +83,9 @@ Use these as the firmware DEFAULT; the menu's "Calibrate touch" item (requested 
 For rotation 1 (flipped 180), mirror both axes: sx' = 479 - sx, sy' = 319 - sy.
 Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + layouts. Step 15 is done (SD content). Step 15b is done (clock in the dashboard table header). Step 16 is done: the card (volume ADATFT, already FAT32 15.9GB, 8KB clusters)
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
-SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). NEXT: step 17 (firmware SD).
+SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). Step 17 IN PROGRESS: sdstore.cpp (SdFat 1.0.16, CS D2, 16MHz, retries every 5s) merges /themes into the theme list and counts pictures.
+Serial command "sdinfo" prints status. As of the last check the device reports "sd missing", so the user was asked to confirm the card is
+seated in the FeatherWing slot. If the card IS seated and it still fails, try a lower clock (SD_SCK_MHZ(4)) and check SD_CS=D2.
 (old) NEXT: step 16
 (SD card: ASK the user to insert it; also ask whether they have a photo folder for /photos; the only sample photo so far is the
 macOS Sonoma wallpaper, since the wallpaper thumbnails are only 214x130).

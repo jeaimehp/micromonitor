@@ -106,6 +106,10 @@ static void handleLine() {
         injectTap(tx, ty);
         return;
     }
+    if (!strcmp(lineBuf, "sdinfo")) {
+        sdInfo();
+        return;
+    }
     if (!parseMetrics(lineBuf, metrics)) {
         parseErrors++;
         Serial.printlnf("err %lu", (unsigned long)parseErrors);
@@ -138,12 +142,19 @@ void setup() {
 
     loadSettings();
     gfxBegin();
+    sdBegin();
+    applyTheme(settings.themeIdx);  // after the SD card, which may provide the saved theme
     touchBegin();
     drawDashboard();
 }
 
 void loop() {
     serviceSerial();
+    if (sdPoll()) {
+        // Card inserted after boot: its themes are now available; re-apply the saved one.
+        applyTheme(settings.themeIdx);
+        if (!menuOpen && !uiBusy) redrawView();
+    }
     if (!stale && millis() - lastSampleMs > STALE_MS) {
         stale = true;
         if (!menuOpen && !uiBusy) drawDashboardStatus();

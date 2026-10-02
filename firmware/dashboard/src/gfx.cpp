@@ -11,17 +11,33 @@ static uint16_t canvasBuf[CANVAS_PIXELS];
 const char *const LAYOUT_NAMES[LAYOUT_COUNT] = {"Quad", "Stacked", "Focus", "Tiles"};
 Theme theme;
 
+static const int NUM_BUILTIN = sizeof(BUILTIN_THEMES) / sizeof(BUILTIN_THEMES[0]);
+
+ThemeSpec BUILTIN_DEFAULT_SPEC() {
+    return BUILTIN_THEMES[0];
+}
+
+bool builtinThemeNamed(const char *name) {
+    for (int i = 0; i < NUM_BUILTIN; i++)
+        if (!strcmp(BUILTIN_THEMES[i].name, name)) return true;
+    return false;
+}
+
 int themeCount() {
-    return sizeof(BUILTIN_THEMES) / sizeof(BUILTIN_THEMES[0]);
+    return NUM_BUILTIN + sdThemeCount();
+}
+
+static const ThemeSpec &themeSpec(int i) {
+    return i < NUM_BUILTIN ? BUILTIN_THEMES[i] : sdTheme(i - NUM_BUILTIN);
 }
 
 const char *themeName(int i) {
-    return BUILTIN_THEMES[i].name;
+    return themeSpec(i).name;
 }
 
 void applyTheme(int i) {
     if (i < 0 || i >= themeCount()) i = 0;
-    const ThemeSpec &s = BUILTIN_THEMES[i];
+    const ThemeSpec &s = themeSpec(i);
     strlcpy(theme.name, s.name, sizeof(theme.name));
     theme.layout = s.layout;
     const uint32_t *c = s.colors;
@@ -39,7 +55,6 @@ void applyTheme(int i) {
 }
 
 void gfxBegin() {
-    applyTheme(settings.themeIdx);
     tft.begin(SPI_FREQ);
     applyRotation();
     tft.fillScreen(theme.separator);
