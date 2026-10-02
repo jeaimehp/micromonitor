@@ -163,9 +163,9 @@ const uint16_t C_SERIES[2] = {rgb(0x3987e5), rgb(0xd95926)};
 const int PANEL_W = 240;
 const int PANEL_H = 105;
 const int GRAPH_X = 8;
-const int GRAPH_Y = 30;
+const int GRAPH_Y = 36;
 const int GRAPH_W = 224;
-const int GRAPH_H = 68;
+const int GRAPH_H = 62;
 const int STEP_PX = 2;
 const int HISTORY = GRAPH_W / STEP_PX + 1;  // 113 samples, about 3.7 minutes at 2s
 
@@ -174,6 +174,8 @@ struct Panel {
     int x, y;
     int numSeries;            // 0 = not implemented yet (placeholder)
     float fixedMax;           // > 0: fixed scale (e.g. 100 for %); 0: autoscale
+    const char *labels[2];    // legend labels for 2-series panels
+    const char *unit;         // unit of the series values, shown with the autoscale max
     float hist[2][HISTORY];
     int count;                // number of valid samples (<= HISTORY)
     int head;                 // index of the next write
@@ -183,11 +185,12 @@ struct Panel {
 Panel panels[4] = {
     {"CPU", 0, 0, 1, 100.0f},
     {"RAM", PANEL_W, 0, 1, 100.0f},
-    {"DISK", 0, PANEL_H, 0, 0.0f},
+    {"DISK", 0, PANEL_H, 2, 0.0f, {"rd", "wr"}, "MB/s"},
     {"NET", PANEL_W, PANEL_H, 0, 0.0f},
 };
 Panel &cpuPanel = panels[0];
 Panel &ramPanel = panels[1];
+Panel &diskPanel = panels[2];
 
 void pushSample(Panel &p, float a, float b = 0) {
     p.hist[0][p.head] = a;
@@ -199,6 +202,17 @@ void pushSample(Panel &p, float a, float b = 0) {
 // Value of series s, i samples back from the newest (i = 0 is newest).
 float histAt(const Panel &p, int s, int i) {
     return p.hist[s][(p.head - 1 - i + HISTORY) % HISTORY];
+}
+
+// Round up to 1, 2 or 5 x 10^n (minimum 1) so the autoscale max reads cleanly.
+float niceCeil(float v) {
+    float step = 1.0f;
+    while (step < v) {
+        if (step * 2 >= v) return step * 2;
+        if (step * 5 >= v) return step * 5;
+        step *= 10;
+    }
+    return step;
 }
 
 void drawPanel(const Panel &p) {
@@ -231,9 +245,33 @@ void drawPanel(const Panel &p) {
     // Scale: fixed, or autoscaled to the visible max with a small floor so idle noise stays flat.
     float maxV = p.fixedMax;
     if (maxV <= 0) {
-        maxV = 1.0f;
+        float peak = 0;
         for (int s = 0; s < p.numSeries; s++)
-            for (int i = 0; i < p.count; i++) maxV = max(maxV, histAt(p, s, i));
+            for (int i = 0; i < p.count; i++) peak = max(peak, histAt(p, s, i));
+        maxV = niceCeil(peak);
+    }
+
+    // Legend row: a colored swatch per series, label + latest value in text ink; autoscale max on the right.
+    canvas.setTextSize(1);
+    if (p.numSeries == 2) {
+        int lx = GRAPH_X;
+        for (int s = 0; s < 2; s++) {
+            canvas.fillRect(lx, 25, 8, 8, C_SERIES[s]);
+            canvas.setTextColor(C_TEXT2);
+            canvas.setCursor(lx + 12, 25);
+            char buf[20];
+            float v = p.count ? histAt(p, s, 0) : 0.0f;
+            snprintf(buf, sizeof(buf), v < 10 ? "%s %.1f" : "%s %.0f", p.labels[s], v);
+            canvas.print(buf);
+            lx += 12 + strlen(buf) * 6 + 10;
+        }
+    }
+    if (p.fixedMax <= 0) {
+        char buf[20];
+        snprintf(buf, sizeof(buf), "max %g %s", maxV, p.unit);
+        canvas.setTextColor(C_TEXT2);
+        canvas.setCursor(GRAPH_X + GRAPH_W - strlen(buf) * 6, 25);
+        canvas.print(buf);
     }
 
     // Recessive grid: quarter lines plus a baseline.
@@ -284,6 +322,8 @@ void updateDashboard() {
     pushSample(ramPanel, metrics.ram);
     snprintf(ramPanel.value, sizeof(ramPanel.value), "%.0f/%.0fG %.0f%%", metrics.ramUsed, metrics.ramTotal,
              metrics.ram);
+    pushSample(diskPanel, metrics.diskRead, metrics.diskWrite);
+    snprintf(diskPanel.value, sizeof(diskPanel.value), "%.0f%% used", metrics.disk);
     for (const Panel &p : panels) drawPanel(p);
 }
 

@@ -37,7 +37,7 @@ Each step ends with: test, git commit, update this file.
 | 4 | Serial link host->device, parse + ack, auto-reconnect | DONE |
 | 5 | Dashboard frame + CPU graph | DONE |
 | 6 | RAM graph | DONE |
-| 7 | Disk graph (usage + I/O) | TODO |
+| 7 | Disk graph (usage + I/O) | DONE |
 | 8 | Network graph (rx/tx) | TODO |
 | 9 | Top-5 process table | TODO |
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | TODO |
@@ -47,7 +47,7 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-6 are complete. Next: step 7 (disk panel): 2 series (read=blue, write=orange MB/s, autoscale) + usage % in the value text + a legend.
+Steps 0-7 are complete. Next: step 8 (net panel): make panels[3] like DISK: numSeries 2, labels {"rx","tx"}, unit "KB/s"; push nr/nt.
 Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
 After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
 Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
@@ -80,6 +80,8 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Theme (from the dataviz skill's validated palette, dark mode): surface #1a1a19, grid #383835, text #fff / #c3c2b7,
   series 1 blue #3987e5, series 2 orange #d95926 (this pair passes the CVD and contrast validator). 2-series panels need a legend
   (colored swatch + text label in the text color, never colored text).
+- Graph area y 36..98. Legend row at y 25 (size-1 text): for 2-series panels, swatch + "label value" (no decimals at >=10);
+  for autoscale panels, "max N unit" right-aligned. niceCeil() rounds the autoscale max to 1/2/5 x 10^n (min 1).
 - A full 4-panel redraw takes about 136 ms.
 
 ## Running
@@ -90,6 +92,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - `tools/snap.sh out.jpg`: webcam photo (1000px). For detail, take a full-res photo with
   `imagesnap -d "HD Pro Webcam C920" -w 2 full.jpg` and crop it with `sips -c 330 800 --cropOffset 560 600` (that crop covers the top panels).
 - `tools/synthetic.py 'r=25*20,r=50*20' [key=val ...]` sends synthetic samples quickly (0.2s apart) to check geometry. Keys follow the protocol below.
+- Webcam autofocus drifts; if a photo is blurry, take another (-w 3).
 - Real load: `yes` processes for CPU; a touched bytearray for RAM (macOS compresses it, so 10GB shows as about 4GB).
 
 ## Host collector protocol (host/collector.py)
@@ -99,6 +102,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 7: disk panel (rd/wr MB/s + "N% used"). Real 4GB F_NOCACHE write/read showed spikes (about 2.1 GB/s); worst-case legend width checked with synthetic data.
 - Step 6: RAM graph, value "used/totalG pct%"; scaling verified with synthetic 25/50/75/100 steps.
 - Step 5: panel framework + CPU graph; verified with an 8x `yes` burst (about 50% plateau on 18 cores) by webcam.
 - Step 4: JSON parse (Device OS JSONValue) + ack. Switched to canvas+DMA rendering (2945ms -> 185ms). Reconnect tested.
