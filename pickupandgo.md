@@ -83,7 +83,9 @@ Use these as the firmware DEFAULT; the menu's "Calibrate touch" item (requested 
 For rotation 1 (flipped 180), mirror both axes: sx' = 479 - sx, sy' = 319 - sy.
 Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + layouts. Step 15 is done (SD content). Step 15b is done (clock in the dashboard table header). Step 16 is done: the card (volume ADATFT, already FAT32 15.9GB, 8KB clusters)
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
-SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). Step 17 IN PROGRESS: sdstore.cpp (SdFat 1.0.16, CS D2, 16MHz, retries every 5s) merges /themes into the theme list and counts pictures.
+SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). The ghost card was removed at the user's request (9 cards now, m01-m09). The SD card still holds the OLD 10-card set (it has a ghost):
+re-copy /motivation (delete the old m*.565 first) the next time the card is in the Mac.
+Step 17 IN PROGRESS: sdstore.cpp (SdFat 1.0.16, CS D2, 16MHz, retries every 5s) merges /themes into the theme list and counts pictures.
 Serial command "sdinfo" prints status. As of the last check the device reports "sd missing", so the user was asked to confirm the card is
 seated in the FeatherWing slot. If the card IS seated and it still fails, try a lower clock (SD_SCK_MHZ(4)) and check SD_CS=D2.
 (old) NEXT: step 16
@@ -159,7 +161,7 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
   /photos/pNN_L|P.565. (.565 and preview PNGs are gitignored; sdcard_preview/motivation_sheet.png is kept.)
 - .565 format: b"R565" + w,h (uint16 LE) + RGB565 big-endian pixels (ready for DMA). _L = 480x320, _P = 320x480,
   cover-cropped. 307208 bytes each. `sd_convert.py --decode f.565 out.png` round-trips it.
-- Pixel art: 10 sprites (cat, cactus, sloth, coffee, robot, avocado, ghost, bee, turtle, sprout), ASCII-art sprites in
+- Pixel art: 9 sprites (cat, cactus, sloth, coffee, robot, avocado, bee, turtle, sprout; the user asked to REMOVE the ghost card), ASCII-art sprites in
   make_pixelart.py, Silom font without anti-aliasing, drawn on a half-res grid and scaled 2x. Pillow + pillow-heif are in .venv.
 
 ## Rendering approach (IMPORTANT for performance)

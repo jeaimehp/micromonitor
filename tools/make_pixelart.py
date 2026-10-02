@@ -113,20 +113,6 @@ BBTTTTTKKTTTTTBB
 ..DgLLKKKKLLgD..
 ...DggggggggD...
 ....DDDDDDDD....""",
-    "ghost": """
-.....WWWWWW.....
-...WWWWWWWWWW...
-..WWWWWWWWWWWW..
-.WWWWWWWWWWWWWW.
-.WWWKKWWWWKKWWW.
-.WWWKKWWWWKKWWW.
-.WWPWWWWWWWWPWW.
-.WWWWWWKKWWWWWW.
-.WWWWWWKKWWWWWW.
-.WWWWWWWWWWWWWW.
-.WWWWWWWWWWWWWW.
-.WWW.WWWW.WWWWW.
-.WW...WW...WWW..""",
     "bee": """
 ...aaa....aaa...
 ..aaaaa..aaaaa..
@@ -172,7 +158,6 @@ CARDS = [
     ("coffee", "One sip at a time", (235, 220, 205), (170, 130, 100)),
     ("robot", "Debugging life, one bug at a time", (205, 225, 255), (120, 150, 200)),
     ("avocado", "Avo great day!", (225, 245, 200), (150, 190, 110)),
-    ("ghost", "Boo-lieve in yourself", (210, 200, 245), (130, 110, 190)),
     ("bee", "Bee proud of tiny wins", (255, 245, 200), (150, 200, 100)),
     ("turtle", "Steady wins the race", (190, 235, 245), (90, 170, 190)),
     ("sprout", "Grow at your own pace", (230, 245, 230), (160, 120, 90)),
