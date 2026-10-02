@@ -3,6 +3,7 @@
 
 Usage: uitest.py <script> [--snapdir DIR]
 script: comma-separated steps: "tap X Y", "send TEXT" (any line, e.g. "send pictest 1 0 480 320"),
+"timer SECONDS", "stopwatch" (start/stop), "pause" (timer pause/resume), "cancel" (timer/stopwatch off),
 "wait SECONDS", "snap NAME" (webcam photo to SNAPDIR/NAME.jpg).
 Prints every line the device sends (acks, taps, menu events) and serves its theme/picture requests like µMonitor.
 """
@@ -19,6 +20,9 @@ import serial
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "host"))
 import content  # noqa: E402
 from collector import INTERVAL, Collector, encode  # noqa: E402
+from timers import TimerState  # noqa: E402
+
+timers = TimerState()
 
 ap = argparse.ArgumentParser()
 ap.add_argument("script")
@@ -63,7 +67,11 @@ def reader():
 def streamer():
     c = Collector()
     while not done.wait(INTERVAL):
-        send(encode(c.sample()))
+        s = c.sample()
+        tm = timers.sample()
+        if tm:
+            s["tm"] = tm
+        send(encode(s))
 
 
 threading.Thread(target=reader, daemon=True).start()
@@ -75,6 +83,14 @@ for step in [s.strip() for s in args.script.split(",") if s.strip()]:
         send(step)
     elif kind == "send":
         send(step[5:])
+    elif kind == "timer":
+        timers.start_timer(float(rest[0]))
+    elif kind == "stopwatch":
+        timers.stopwatch_start_stop()
+    elif kind == "pause":
+        timers.toggle_pause()
+    elif kind == "cancel":
+        timers.cancel()
     elif kind == "wait":
         time.sleep(float(rest[0]))
     elif kind == "snap":

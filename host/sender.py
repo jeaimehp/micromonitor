@@ -13,6 +13,7 @@ import serial
 
 import content
 from collector import INTERVAL, Collector, encode
+from timers import TimerState
 
 
 def find_port():
@@ -39,6 +40,10 @@ class Streamer:
         self.last_ack = ""
         self.last_sample = None
         self._rx = b""
+        self._wlock = threading.Lock()   # the app's menu thread sends commands while this thread streams
+        self.timers = TimerState()
+        self.device_state = {}           # parsed from the device's "state ..." lines
+        self.device_themes = []
 
     def stop(self):
         self._stop.set()
@@ -62,13 +67,14 @@ class Streamer:
             log(f"open {port} failed: {e}")
 
     def _close(self):
-        if self.ser:
-            try:
-                self.ser.close()
-            except Exception:
-                pass
-        self.ser = None
-        self.connected_port = None
+        with self._wlock:
+            if self.ser:
+                try:
+                    self.ser.close()
+                except Exception:
+                    pass
+            self.ser = None
+            self.connected_port = None
 
     def _drain(self):
         """Read whatever the device has sent back: acks/errors, and requests for themes or pictures."""
@@ -82,16 +88,40 @@ class Streamer:
                 log(f"< {line}")
             if line.startswith("req "):
                 self._serve(line.split())
+            elif line.startswith("state "):
+                self._parse_state(line)
             else:
                 self.last_ack = line
 
+    def _parse_state(self, line):
+        state = {}
+        for part in line[6:].split(" themes=", 1)[0].split():
+            k, _, v = part.partition("=")
+            if v.lstrip("-").isdigit():
+                state[k] = int(v)
+        self.device_state = state
+        if " themes=" in line:
+            self.device_themes = line.split(" themes=", 1)[1].split(",")
+
+    def command(self, text):
+        """Send a "cmd ..." line to the device (from any thread). Returns False when not connected."""
+        with self._wlock:
+            if self.ser is None:
+                return False
+            try:
+                self.ser.write(f"cmd {text}\n".encode())
+                return True
+            except (serial.SerialException, OSError):
+                return False
+
     def _send_blocking(self, data):
         # Pictures are large; the device reads them as fast as it can draw, so allow a long write.
-        self.ser.write_timeout = 15
-        try:
-            self.ser.write(data)
-        finally:
-            self.ser.write_timeout = 1
+        with self._wlock:
+            self.ser.write_timeout = 15
+            try:
+                self.ser.write(data)
+            finally:
+                self.ser.write_timeout = 1
 
     def _serve(self, parts):
         if parts[1:2] == ["themes"]:
@@ -112,16 +142,22 @@ class Streamer:
                 break
             next_t += INTERVAL
             self.last_sample = collector.sample()
+            tm = self.timers.sample()
+            if tm:
+                self.last_sample["tm"] = tm
             line = encode(self.last_sample)
             if self.ser is None:
                 self._open()
+                if self.ser is not None:
+                    self.command("state")  # so the app menu can show the device's current settings
                 if self.ser is None:
                     log("device not found, retrying")
                     self.on_status(self)
                     continue
             try:
                 self._drain()
-                self.ser.write(line.encode() + b"\n")
+                with self._wlock:
+                    self.ser.write(line.encode() + b"\n")
                 self.sent += 1
                 if self.verbose:
                     log(f"> {line}")

@@ -50,6 +50,17 @@ bool parseMetrics(const char *line, Metrics &m) {
         else if (key == "nr") m.netRx = v.toDouble();
         else if (key == "nt") m.netTx = v.toDouble();
         else if (key == "t") m.time = v.toInt();
+        else if (key == "tm" && v.isArray()) {
+            // Timer/stopwatch from µMonitor: [mode, seconds, running].
+            JSONArrayIterator a(v);
+            int mode = 0;
+            float secs = 0;
+            bool running = false;
+            if (a.next()) mode = a.value().toInt();
+            if (a.next()) secs = a.value().toDouble();
+            if (a.next()) running = a.value().toBool();
+            setTimerState(mode, secs, running);
+        }
         else if (key == "tz") m.tzOffset = v.toInt();
         else if (key == "p" && v.isArray()) {
             JSONArrayIterator procs(v);
@@ -127,6 +138,10 @@ static void handleLine() {
     int tx, ty;
     if (sscanf(lineBuf, "tap %d %d", &tx, &ty) == 2) {
         injectTap(tx, ty);
+        return;
+    }
+    if (!strncmp(lineBuf, "cmd ", 4)) {
+        handleCommand(lineBuf);
         return;
     }
     if (!strncmp(lineBuf, "thm ", 4)) {
@@ -228,6 +243,13 @@ void loop() {
     }
     albumTick();
     mixedTick();
+    // Timer/stopwatch: refresh its display every second (and flash once a timer is done).
+    static int lastTimerShown = -1;
+    int shown = timerMode() ? timerSeconds() * 2 + (timerDone() ? (millis() / 500) % 2 : 0) : -1;
+    if (shown != lastTimerShown) {
+        lastTimerShown = shown;
+        if (!menuOpen && !uiBusy) drawTimerTick();
+    }
     int x, y;
     if (pollTap(x, y)) {
         if (menuOpen) menuTap(x, y);

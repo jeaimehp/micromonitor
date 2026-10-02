@@ -168,6 +168,19 @@ bool picturePending();              // a "pic" header arrived; its binary payloa
 // Fetch picture n of a folder at w x h and draw it at (x, y). count = pictures in the folder (0 = none).
 bool fetchPicture(int folder, int n, int x, int y, int w, int h, int &count);
 
+// ---- Control (control.cpp): settings shared by the touch menu and µMonitor commands; timer/stopwatch ----
+bool applySetting(const char *key, int value);  // keys: view theme layout folder slides rot badge side
+int currentRotation();              // 0 normal, 1 flipped, 2 portrait, 3 portrait flipped
+void reportState();                 // "state view=.. theme=.. ... themes=a,b,c" for µMonitor's menu
+void handleCommand(const char *line);  // "cmd <key> <value>" / "cmd next|prev|calibrate|state"
+enum TimerMode { TM_NONE, TM_TIMER, TM_STOPWATCH };
+void setTimerState(int mode, float seconds, bool running);
+int timerMode();
+int timerSeconds();
+bool timerDone();
+bool timerRunning();
+void formatTimer(char *buf, size_t len);
+
 // ---- Album view (album.cpp) ----
 const int NUM_SLIDE_OPTIONS = 3;
 extern const uint8_t SLIDE_SECONDS[NUM_SLIDE_OPTIONS];
@@ -176,6 +189,7 @@ void albumShow();                   // (re)draw the current picture
 void albumTick();                   // slideshow timer
 bool albumTap(int x, int y);        // edges = prev/next; false for the middle (opens the menu)
 void albumResetIndex();
+void pictureStep(int delta);        // next/previous picture in the album or mixed view
 void drawClockBadge();
 
 // ---- Dashboard view (dashboard_view.cpp) ----
@@ -188,6 +202,8 @@ void mixedShow();               // mixed view: full redraw including the photo
 void mixedTick();               // mixed view slideshow
 bool mixedTap(int x, int y);    // photo = next picture; false elsewhere (opens the menu)
 void mixedResetIndex();
+void mixedStep(int delta);
+void drawTimerTick();               // refresh only the clock/timer area of the current view
 
 // ---- Menu (menu.cpp) ----
 extern bool menuOpen;
@@ -195,6 +211,7 @@ void openMenu();
 void closeMenu();
 void menuTap(int x, int y);
 void menuTick();                // auto-close timeout
+void redrawMenu();
 
 // ---- Main (main.cpp) ----
 void serviceSerial();

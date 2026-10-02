@@ -30,7 +30,8 @@ static void drawMessage(const char *title, const char *line1, const char *line2)
 
 // Rounded clock badge in the bottom-right corner of the picture.
 void drawClockBadge() {
-    if (!settings.clockBadge || !clockValid() || showingMessage) return;
+    bool timer = timerMode() != TM_NONE;
+    if ((!settings.clockBadge && !timer) || (!clockValid() && !timer) || showingMessage) return;
     const int bw = 132, bh = 44;
     int x = tft.width() - bw - 8, y = tft.height() - bh - 8;
     renderRegion(x, y, bw, bh, [&] {
@@ -39,8 +40,14 @@ void drawClockBadge() {
         canvas.fillRect(x, y, bw, bh, theme.separator);
         canvas.fillRoundRect(x, y, bw, bh, 8, theme.surface);
         char hm[12], date[16];
-        strlcpy(hm, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(hm));
-        formatDate(date, sizeof(date));
+        if (timer) {
+            formatTimer(hm, sizeof(hm));
+            strcpy(date, timerDone() ? "TIME'S UP" : timerMode() == TM_TIMER ? "TIMER" : "STOPWATCH");
+            if (timerDone() && (millis() / 500) % 2) canvas.fillRoundRect(x, y, bw, bh, 8, theme.critical);
+        } else {
+            strlcpy(hm, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(hm));
+            formatDate(date, sizeof(date));
+        }
         char *t = hm;
         while (*t == ' ') t++;
         canvas.setStyle(2);
@@ -88,6 +95,11 @@ void albumStep(int delta) {
     showPicture();
 }
 
+void pictureStep(int delta) {
+    if (settings.view == VIEW_ALBUM) albumStep(delta);
+    else if (settings.view == VIEW_MIXED) mixedStep(delta);
+}
+
 void albumResetIndex() {
     albumIndex = 0;
     albumCount = -1;
@@ -97,6 +109,7 @@ void albumTick() {
     if (settings.view != VIEW_ALBUM || menuOpen || uiBusy) return;
     uint32_t interval = (uint32_t)SLIDE_SECONDS[settings.slideIdx % NUM_SLIDE_OPTIONS] * 1000;
     // Retry soon after a message (e.g. the host just came back); otherwise follow the slideshow interval.
+    if (albumCount == 1 && !showingMessage) return;  // a single picture never needs reloading
     if (millis() - lastChange >= (showingMessage ? 3000 : interval)) albumStep(1);
 }
 

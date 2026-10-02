@@ -347,9 +347,40 @@ static void drawClockTile(int y) {
     printCentered(date, cx, ty + timeH + gap);
 }
 
+// Timer/stopwatch in place of the clock: label, big digits, and the time of day underneath.
+static void drawTimerTile(int y) {
+    int h = SCREEN_H - y;
+    bool flash = timerDone() && (millis() / 500) % 2;
+    canvas.fillRect(CLOCK_X, y, CLOCK_W, h, theme.separator);
+    canvas.fillRoundRect(CLOCK_X + 2, y + 2, CLOCK_W - 4, h - 4, CARD_RADIUS, flash ? theme.critical : theme.surface);
+    int cx = CLOCK_X + CLOCK_W / 2;
+    const char *label = timerDone() ? "TIME'S UP" : timerMode() == TM_TIMER ? (timerRunning() ? "TIMER" : "TIMER PAUSED")
+                                    : (timerRunning() ? "STOPWATCH" : "STOPWATCH PAUSED");
+    char digits[12], now[12];
+    formatTimer(digits, sizeof(digits));
+    const int timeH = 25, top = y + (h - 9 - 8 - timeH - 10 - 13) / 2;
+    canvas.setStyle(1);
+    canvas.setTextColor(theme.text2);
+    printCentered(label, cx, top);
+    canvas.setStyle(4);
+    canvas.setTextColor(theme.text);
+    printCentered(digits, cx, top + 17);
+    if (clockValid()) {
+        strlcpy(now, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(now));
+        char *t = now;
+        while (*t == ' ') t++;
+        canvas.setStyle(2);
+        canvas.setTextColor(theme.text2);
+        printCentered(t, cx, top + 17 + timeH + 10);
+    }
+}
+
 static void drawClock() {
     int y = tableGeom().y;
-    renderRegion(CLOCK_X, y, CLOCK_W, SCREEN_H - y, [&] { drawClockTile(y); });
+    renderRegion(CLOCK_X, y, CLOCK_W, SCREEN_H - y, [&] {
+        if (timerMode() != TM_NONE) drawTimerTile(y);
+        else drawClockTile(y);
+    });
 }
 
 static void drawTable() {
@@ -491,6 +522,8 @@ static void drawMixedPhoto() {
     roundCorners(x + 2, 2, MIX_PHOTO_W - 4, MIX_PHOTO_H - 4, CARD_RADIUS);
 }
 
+static void drawMixedClock();
+
 static void drawMixedStrip() {
     const int w = TABLE_W, h = SCREEN_H - MIX_STRIP_Y;
     renderRegion(0, MIX_STRIP_Y, w, h, [&] {
@@ -519,11 +552,21 @@ static void drawMixedStrip() {
             printRight(buf, COL_MEM_RIGHT, ty);
         }
     });
-    // Compact clock beside the strip.
+    drawMixedClock();
+}
+
+// Compact clock (or timer) beside the mixed view's process strip.
+static void drawMixedClock() {
+    const int h = SCREEN_H - MIX_STRIP_Y;
     renderRegion(CLOCK_X, MIX_STRIP_Y, CLOCK_W, h, [&] {
         card(CLOCK_X, MIX_STRIP_Y, CLOCK_W, h);
         char hm[12], date[16];
-        if (clockValid()) {
+        if (timerMode() != TM_NONE) {
+            formatTimer(hm, sizeof(hm));
+            strcpy(date, timerDone() ? "TIME'S UP" : timerMode() == TM_TIMER ? "TIMER" : "STOPWATCH");
+            if (timerDone() && (millis() / 500) % 2)
+                canvas.fillRoundRect(CLOCK_X + 2, MIX_STRIP_Y + 2, CLOCK_W - 4, h - 4, CARD_RADIUS, theme.critical);
+        } else if (clockValid()) {
             strlcpy(hm, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(hm));
             formatDate(date, sizeof(date));
         } else {
@@ -557,6 +600,17 @@ void mixedShow() {
     drawMixedPhoto();
 }
 
+void mixedStep(int delta) {
+    if (mixedCount > 0) mixedIndex = (mixedIndex + delta + mixedCount) % mixedCount;
+    drawMixedPhoto();
+}
+
+void drawTimerTick() {
+    if (settings.view == VIEW_DASHBOARD) drawClock();
+    else if (settings.view == VIEW_MIXED) drawMixedClock();
+    else drawClockBadge();
+}
+
 void mixedResetIndex() {
     mixedIndex = 0;
     mixedCount = -1;
@@ -565,6 +619,8 @@ void mixedResetIndex() {
 void mixedTick() {
     if (settings.view != VIEW_MIXED || menuOpen || uiBusy) return;
     uint32_t interval = (uint32_t)SLIDE_SECONDS[settings.slideIdx % NUM_SLIDE_OPTIONS] * 1000;
+    // A single picture never needs reloading; an empty or failed folder is retried every 3s.
+    if (mixedCount == 1) return;
     if (millis() - mixedChange >= (mixedCount > 0 ? interval : 3000)) {
         if (mixedCount > 0) mixedIndex = (mixedIndex + 1) % mixedCount;
         drawMixedPhoto();

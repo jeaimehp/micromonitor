@@ -30,6 +30,7 @@ void handleThemeLine(const char *line) {
     if (!strcmp(p, "end")) {
         numHostThemes = receivingThemes;
         Serial.printlnf("themes %d", numHostThemes);
+        reportState();
         applyTheme(settings.themeIdx);  // the saved theme may be one of these
         if (!menuOpen && !uiBusy) redrawView();
         return;

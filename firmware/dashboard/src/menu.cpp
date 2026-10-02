@@ -31,7 +31,7 @@ static const Button BUTTONS[B_COUNT] = {
 static const char *const ROTATION_NAMES[4] = {"Normal", "Flipped", "Portrait", "Portrait flip"};
 
 static int rotationIndex() {
-    return (settings.albumPortrait ? 2 : 0) + (settings.flip ? 1 : 0);
+    return currentRotation();
 }
 
 // Caption (small, top line) and value (large) for each button; enabled = false greys it out with a reason.
@@ -179,51 +179,20 @@ void menuTap(int x, int y) {
     case B_VIEW_DASH:
     case B_VIEW_ALBUM:
     case B_VIEW_MIXED:
-        settings.view = id == B_VIEW_DASH ? VIEW_DASHBOARD : id == B_VIEW_ALBUM ? VIEW_ALBUM : VIEW_MIXED;
-        saveSettings();
+        applySetting("view", id == B_VIEW_DASH ? VIEW_DASHBOARD : id == B_VIEW_ALBUM ? VIEW_ALBUM : VIEW_MIXED);
         closeMenu();
         return;
-    case B_THEME:
-        // Next theme; it also brings its suggested layout (Layout can override it afterwards).
-        settings.themeIdx = (settings.themeIdx + 1) % themeCount();
-        applyTheme(settings.themeIdx);
-        settings.layout = theme.layout;
-        saveSettings();
-        break;
-    case B_LAYOUT:
-        settings.layout = (settings.layout + 1) % LAYOUT_COUNT;
-        saveSettings();
-        break;
-    case B_FOLDER:
-        settings.folder = (settings.folder + 1) % NUM_FOLDERS;
-        albumResetIndex();
-        mixedResetIndex();
-        saveSettings();
-        break;
-    case B_SLIDES:
-        settings.slideIdx = (settings.slideIdx + 1) % NUM_SLIDE_OPTIONS;
-        saveSettings();
-        break;
-    case B_ROTATE: {
-        int r = (rotationIndex() + 1) % 4;
-        settings.albumPortrait = r >= 2;
-        settings.flip = r & 1;
-        saveSettings();
-        applyRotation();
-        break;
-    }
+    case B_THEME: applySetting("theme", (settings.themeIdx + 1) % themeCount()); break;
+    case B_LAYOUT: applySetting("layout", (settings.layout + 1) % LAYOUT_COUNT); break;
+    case B_FOLDER: applySetting("folder", (settings.folder + 1) % NUM_FOLDERS); break;
+    case B_SLIDES: applySetting("slides", (settings.slideIdx + 1) % NUM_SLIDE_OPTIONS); break;
+    case B_ROTATE: applySetting("rot", (rotationIndex() + 1) % 4); break;
     case B_MORE:
     case B_BACK:
         page = id == B_MORE ? 1 : 0;
         break;
-    case B_BADGE:
-        settings.clockBadge = !settings.clockBadge;
-        saveSettings();
-        break;
-    case B_SIDE:
-        settings.mixedSide = !settings.mixedSide;
-        saveSettings();
-        break;
+    case B_BADGE: applySetting("badge", !settings.clockBadge); break;
+    case B_SIDE: applySetting("side", !settings.mixedSide); break;
     case B_CALIBRATE:
         uiBusy = true;
         runCalibration();
@@ -231,6 +200,11 @@ void menuTap(int x, int y) {
         lastInteraction = millis();
         break;
     }
+    renderStrips(drawMenu);
+}
+
+void redrawMenu() {
+    lastInteraction = millis();
     renderStrips(drawMenu);
 }
 
