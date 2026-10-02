@@ -39,7 +39,7 @@ void setup() {
     digitalWrite(TS_CS, HIGH);
 
     tft.begin();
-    tft.setRotation(1);  // landscape, 480x320
+    tft.setRotation(3);  // landscape 480x320, flipped to match how the wing is mounted
     uint32_t t0 = millis();
     testPattern();
     Serial.printlnf("test pattern drawn in %lu ms", (unsigned long)(millis() - t0));
