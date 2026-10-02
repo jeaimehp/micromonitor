@@ -22,7 +22,7 @@ VIEWS = ["Dashboard", "Album", "Mixed"]
 LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles"]
 FOLDERS = ["Photos", "Motivation"]
 SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds"]
-ROTATIONS = ["Normal", "Flipped 180°", "Portrait (album)", "Portrait flipped (album)"]
+ROTATIONS = ["Landscape", "Landscape flipped 180°", "Portrait", "Portrait flipped 180°"]
 SIDES = ["Photo on the Left", "Photo on the Right"]
 TIMER_PRESETS = [1, 5, 10, 15, 25, 60]
 

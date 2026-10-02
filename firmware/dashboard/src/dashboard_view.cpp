@@ -171,7 +171,7 @@ static void drawStandardPanel(const Panel &p, int x, int y, int w, int h, int n)
     scaleText(p, n, buf, sizeof(buf));
     canvas.setStyle(1);
     canvas.setTextColor(theme.text2);
-    printRight(buf, x + w - 8, y + 25);
+    if (w >= 200) printRight(buf, x + w - 8, y + 25);  // too narrow for both legend and scale
     drawGraph(p, x + 10, y + 38, w - 20, h - 47, n, true);
 }
 
@@ -248,12 +248,28 @@ struct TableGeom {
     int y, rows, rowH;
 };
 
+struct Rect {
+    int x, y, w, h;
+};
+
+// Portrait (320x480) when the screen is rotated that way; every layout has a landscape and a portrait geometry.
+static bool portrait() {
+    return tft.height() > tft.width();
+}
+
 static TableGeom tableGeom() {
+    if (portrait()) {
+        switch (settings.layout) {
+        case LAYOUT_STACKED: return {256, 5, 19};
+        case LAYOUT_FOCUS: return {210, 5, 19};
+        case LAYOUT_TILES: return {220, 5, 19};
+        default: return {288, 5, 19};
+        }
+    }
     if (settings.layout == LAYOUT_STACKED) return {232, 3, 24};
     return {210, 5, 19};
 }
 
-// The table shares the bottom band with the clock tile on the right.
 static const int TABLE_W = 320;
 static const int CLOCK_X = TABLE_W;
 static const int CLOCK_W = SCREEN_W - TABLE_W;
@@ -263,9 +279,22 @@ static const int COL_BAR_W = 56;
 static const int COL_CPU_RIGHT = 258;   // right edge of the CPU% value
 static const int COL_MEM_RIGHT = 310;   // right edge of the MEM% value
 
+// Bottom of the table card: the screen bottom in landscape (the clock sits beside it), the clock's top in portrait.
+static int tableBottom() {
+    TableGeom t = tableGeom();
+    return portrait() ? t.y + TABLE_HEADER_H + t.rows * t.rowH + 4 : SCREEN_H;
+}
+
+// Landscape: beside the table (bottom right). Portrait: full width under the table.
+static Rect clockRect() {
+    TableGeom t = tableGeom();
+    if (portrait()) return {0, tableBottom(), TABLE_W, tft.height() - tableBottom()};
+    return {CLOCK_X, t.y, CLOCK_W, SCREEN_H - t.y};
+}
+
 static void tableCard() {
     int y = tableGeom().y;
-    card(0, y, TABLE_W, SCREEN_H - y);
+    card(0, y, TABLE_W, tableBottom() - y);
 }
 
 static void drawTableHeader(int y) {
@@ -302,11 +331,11 @@ static void drawTableRow(int i, int y, int h) {
     printRight(buf, COL_MEM_RIGHT, ty);
 }
 
-// Clock tile: large time, AM/PM, and the date, in the bottom-right corner of the dashboard.
-static void drawClockTile(int y) {
-    int h = SCREEN_H - y;
-    card(CLOCK_X, y, CLOCK_W, h);
-    int cx = CLOCK_X + CLOCK_W / 2;
+// Clock tile: large time, AM/PM, and the date.
+static void drawClockTile(Rect r) {
+    int y = r.y, h = r.h;
+    card(r.x, r.y, r.w, r.h);
+    int cx = r.x + r.w / 2;
     char hm[8], ampm[4], date[16];
     if (clockValid()) {
         strlcpy(hm, Time.format(Time.now(), "%l:%M").c_str(), sizeof(hm));
@@ -348,12 +377,12 @@ static void drawClockTile(int y) {
 }
 
 // Timer/stopwatch in place of the clock: label, big digits, and the time of day underneath.
-static void drawTimerTile(int y) {
-    int h = SCREEN_H - y;
+static void drawTimerTile(Rect r) {
+    int y = r.y, h = r.h;
     bool flash = timerDone() && (millis() / 500) % 2;
-    canvas.fillRect(CLOCK_X, y, CLOCK_W, h, theme.separator);
-    canvas.fillRoundRect(CLOCK_X + 2, y + 2, CLOCK_W - 4, h - 4, CARD_RADIUS, flash ? theme.critical : theme.surface);
-    int cx = CLOCK_X + CLOCK_W / 2;
+    canvas.fillRect(r.x, r.y, r.w, r.h, theme.separator);
+    canvas.fillRoundRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4, CARD_RADIUS, flash ? theme.critical : theme.surface);
+    int cx = r.x + r.w / 2;
     const char *label = timerDone() ? "TIME'S UP" : timerMode() == TM_TIMER ? (timerRunning() ? "TIMER" : "TIMER PAUSED")
                                     : (timerRunning() ? "STOPWATCH" : "STOPWATCH PAUSED");
     char digits[12], now[12];
@@ -376,10 +405,10 @@ static void drawTimerTile(int y) {
 }
 
 static void drawClock() {
-    int y = tableGeom().y;
-    renderRegion(CLOCK_X, y, CLOCK_W, SCREEN_H - y, [&] {
-        if (timerMode() != TM_NONE) drawTimerTile(y);
-        else drawClockTile(y);
+    Rect r = clockRect();
+    renderRegion(r.x, r.y, r.w, r.h, [&] {
+        if (timerMode() != TM_NONE) drawTimerTile(r);
+        else drawClockTile(r);
     });
 }
 
@@ -391,14 +420,19 @@ static void drawTable() {
         renderRegion(0, ry, TABLE_W, t.rowH, [&] { drawTableRow(i, ry, t.rowH); });
     }
     int end = t.y + TABLE_HEADER_H + t.rows * t.rowH;
-    if (end < SCREEN_H) renderRegion(0, end, TABLE_W, SCREEN_H - end, [] { tableCard(); });
+    if (end < tableBottom()) renderRegion(0, end, TABLE_W, tableBottom() - end, [] { tableCard(); });
     drawClock();
 }
 
 // ---- Layouts ----
-static const int FOCUS_MAIN_H = 150;
-static const int FOCUS_TILE_Y = 150;
-static const int FOCUS_TILE_H = 60;
+// Focus layout geometry: the main panel, then a row of 3 mini tiles (tap one to focus it).
+struct FocusGeom {
+    int mainH, tileY, tileW, tileH;
+};
+
+static FocusGeom focusGeom() {
+    return portrait() ? FocusGeom{150, 150, 107, 60} : FocusGeom{150, 150, 160, 60};
+}
 
 // The three metrics not in focus, in order.
 static void focusOthers(int others[3]) {
@@ -407,35 +441,42 @@ static void focusOthers(int others[3]) {
 }
 
 void drawDashboard() {
+    const bool tall = portrait();
+    const int W = tft.width();
     switch (settings.layout) {
-    case LAYOUT_STACKED:
+    case LAYOUT_STACKED: {
+        const int h = tall ? 64 : 58;
         for (int i = 0; i < 4; i++) {
-            int y = i * 58;
-            renderRegion(0, y, SCREEN_W, 58, [&] { drawStrip(panels[i], 0, y, SCREEN_W, 58); });
-        }
-        break;
-    case LAYOUT_FOCUS: {
-        const Panel &main = panels[settings.focus];
-        renderRegion(0, 0, SCREEN_W, FOCUS_MAIN_H, [&] { drawStandardPanel(main, 0, 0, SCREEN_W, FOCUS_MAIN_H, HISTORY); });
-        int others[3];
-        focusOthers(others);
-        for (int k = 0; k < 3; k++) {
-            int x = k * 160;
-            renderRegion(x, FOCUS_TILE_Y, 160, FOCUS_TILE_H,
-                         [&] { drawMiniTile(panels[others[k]], x, FOCUS_TILE_Y, 160, FOCUS_TILE_H); });
+            int y = i * h;
+            renderRegion(0, y, W, h, [&] { drawStrip(panels[i], 0, y, W, h); });
         }
         break;
     }
-    case LAYOUT_TILES:
-        for (int i = 0; i < 4; i++) {
-            int x = (i % 2) * 240, y = (i / 2) * 105;
-            renderRegion(x, y, 240, 105, [&] { drawTile(panels[i], x, y, 240, 105); });
+    case LAYOUT_FOCUS: {
+        FocusGeom g = focusGeom();
+        const Panel &main = panels[settings.focus];
+        renderRegion(0, 0, W, g.mainH, [&] { drawStandardPanel(main, 0, 0, W, g.mainH, HISTORY); });
+        int others[3];
+        focusOthers(others);
+        for (int k = 0; k < 3; k++) {
+            int x = k * g.tileW, w = k == 2 ? W - 2 * g.tileW : g.tileW;
+            renderRegion(x, g.tileY, w, g.tileH, [&] { drawMiniTile(panels[others[k]], x, g.tileY, w, g.tileH); });
         }
         break;
-    default:  // LAYOUT_QUAD
+    }
+    case LAYOUT_TILES: {
+        const int tw = W / 2, th = tall ? 110 : 105;
         for (int i = 0; i < 4; i++) {
-            int x = (i % 2) * 240, y = (i / 2) * 105;
-            renderRegion(x, y, 240, 105, [&] { drawStandardPanel(panels[i], x, y, 240, 105, 113); });
+            int x = (i % 2) * tw, y = (i / 2) * th;
+            renderRegion(x, y, tw, th, [&] { drawTile(panels[i], x, y, tw, th); });
+        }
+        break;
+    }
+    default:  // LAYOUT_QUAD: 2x2 in landscape, 4 full-width panels in portrait
+        for (int i = 0; i < 4; i++) {
+            int x = tall ? 0 : (i % 2) * 240, y = tall ? i * 72 : (i / 2) * 105;
+            int w = tall ? W : 240, h = tall ? 72 : 105;
+            renderRegion(x, y, w, h, [&] { drawStandardPanel(panels[i], x, y, w, h, tall ? 150 : 113); });
         }
         break;
     }
@@ -449,10 +490,11 @@ void drawDashboardStatus() {
 }
 
 bool dashboardTap(int x, int y) {
-    if (settings.layout != LAYOUT_FOCUS || y < FOCUS_TILE_Y || y >= FOCUS_TILE_Y + FOCUS_TILE_H) return false;
+    FocusGeom g = focusGeom();
+    if (settings.layout != LAYOUT_FOCUS || y < g.tileY || y >= g.tileY + g.tileH) return false;
     int others[3];
     focusOthers(others);
-    settings.focus = others[min(x / 160, 2)];
+    settings.focus = others[min(x / g.tileW, 2)];
     saveSettings();
     Serial.printlnf("focus %d", settings.focus);
     drawDashboard();
@@ -460,18 +502,26 @@ bool dashboardTap(int x, int y) {
 }
 
 // ---- Mixed view: photo + compact dashboard ----
-// Top half: a 240x160 photo (left or right) beside CPU/GPU and RAM mini tiles. Bottom: DISK and NET panels,
-// then a strip with the top two processes and a compact clock.
-static const int MIX_PHOTO_W = 240, MIX_PHOTO_H = 160;
-static const int MIX_PANEL_Y = 160, MIX_PANEL_H = 105;
-static const int MIX_STRIP_Y = MIX_PANEL_Y + MIX_PANEL_H;  // 265
+// Landscape: a 240x160 photo (left or right) beside CPU/GPU and RAM mini tiles; DISK and NET panels; a strip with
+// the top two processes and a compact clock. Portrait: the photo across the top, the tiles and panels in pairs
+// below it, then the strip and a one-line clock.
+struct MixGeom {
+    Rect photo, cpu, ram, disk, net, strip, clock;
+    bool oneLineClock;
+};
+
+static MixGeom mixGeom() {
+    if (portrait())
+        return {{0, 0, 320, 213}, {0, 213, 160, 70}, {160, 213, 160, 70}, {0, 283, 160, 105}, {160, 283, 160, 105},
+                {0, 388, 320, 53}, {0, 441, 320, 39}, true};
+    int px = settings.mixedSide ? 240 : 0, tx = settings.mixedSide ? 0 : 240;
+    return {{px, 0, 240, 160}, {tx, 0, 240, 80}, {tx, 80, 240, 80}, {0, 160, 240, 105}, {240, 160, 240, 105},
+            {0, 265, 320, 55}, {320, 265, 160, 55}, false};
+}
+
 static int mixedIndex = 0;
 static int mixedCount = -1;
 static uint32_t mixedChange = 0;
-
-static int mixedPhotoX() {
-    return settings.mixedSide ? 240 : 0;
-}
 
 // Round the photo's corners by painting the separator color outside a radius-r arc in each corner.
 static void roundCorners(int x, int y, int w, int h, int r) {
@@ -489,46 +539,42 @@ static void roundCorners(int x, int y, int w, int h, int r) {
     }
 }
 
+static void photoMessage(Rect p, const char *text) {
+    renderRegion(p.x, p.y, p.w, p.h, [&] {
+        card(p.x, p.y, p.w, p.h);
+        canvas.setStyle(1);
+        canvas.setTextColor(theme.text2);
+        printCentered(text, p.x + p.w / 2, p.y + p.h / 2 - 4);
+    });
+}
+
 static void drawMixedPhoto() {
-    int x = mixedPhotoX();
+    Rect p = mixGeom().photo;
     mixedChange = millis();
     if (stale) {
-        renderRegion(x, 0, MIX_PHOTO_W, MIX_PHOTO_H, [&] {
-            card(x, 0, MIX_PHOTO_W, MIX_PHOTO_H);
-            canvas.setStyle(1);
-            canvas.setTextColor(theme.text2);
-            printCentered("photos need \xE6Monitor", x + MIX_PHOTO_W / 2, MIX_PHOTO_H / 2 - 4);
-        });
+        photoMessage(p, "photos need \xE6Monitor");
         mixedCount = -1;
         return;
     }
     int count;
     // 2px gap like the cards, then round the corners to match them.
-    bool ok = fetchPicture(settings.folder, mixedIndex, x + 2, 2, MIX_PHOTO_W - 4, MIX_PHOTO_H - 4, count);
+    bool ok = fetchPicture(settings.folder, mixedIndex, p.x + 2, p.y + 2, p.w - 4, p.h - 4, count);
     mixedCount = count;
     if (count == 0 || !ok) {
-        renderRegion(x, 0, MIX_PHOTO_W, MIX_PHOTO_H, [&] {
-            card(x, 0, MIX_PHOTO_W, MIX_PHOTO_H);
-            canvas.setStyle(1);
-            canvas.setTextColor(theme.text2);
-            printCentered(count == 0 ? "no pictures yet" : "picture failed", x + MIX_PHOTO_W / 2, MIX_PHOTO_H / 2 - 4);
-        });
+        photoMessage(p, count == 0 ? "no pictures yet" : "picture failed");
         return;
     }
-    renderRegion(x, 0, MIX_PHOTO_W, 2, [&] { canvas.fillScreen(theme.separator); });
-    renderRegion(x, MIX_PHOTO_H - 2, MIX_PHOTO_W, 2, [&] { canvas.fillScreen(theme.separator); });
-    renderRegion(x, 0, 2, MIX_PHOTO_H, [&] { canvas.fillScreen(theme.separator); });
-    renderRegion(x + MIX_PHOTO_W - 2, 0, 2, MIX_PHOTO_H, [&] { canvas.fillScreen(theme.separator); });
-    roundCorners(x + 2, 2, MIX_PHOTO_W - 4, MIX_PHOTO_H - 4, CARD_RADIUS);
+    renderRegion(p.x, p.y, p.w, 2, [&] { canvas.fillScreen(theme.separator); });
+    renderRegion(p.x, p.y + p.h - 2, p.w, 2, [&] { canvas.fillScreen(theme.separator); });
+    renderRegion(p.x, p.y, 2, p.h, [&] { canvas.fillScreen(theme.separator); });
+    renderRegion(p.x + p.w - 2, p.y, 2, p.h, [&] { canvas.fillScreen(theme.separator); });
+    roundCorners(p.x + 2, p.y + 2, p.w - 4, p.h - 4, CARD_RADIUS);
 }
 
-static void drawMixedClock();
-
-static void drawMixedStrip() {
-    const int w = TABLE_W, h = SCREEN_H - MIX_STRIP_Y;
-    renderRegion(0, MIX_STRIP_Y, w, h, [&] {
-        card(0, MIX_STRIP_Y, w, h);
-        int y = MIX_STRIP_Y;
+static void drawMixedStrip(Rect r) {
+    renderRegion(r.x, r.y, r.w, r.h, [&] {
+        card(r.x, r.y, r.w, r.h);
+        int y = r.y;
         canvas.setStyle(1);
         canvas.setTextColor(theme.text2);
         canvas.cursor(8, y + 6);
@@ -552,20 +598,20 @@ static void drawMixedStrip() {
             printRight(buf, COL_MEM_RIGHT, ty);
         }
     });
-    drawMixedClock();
 }
 
-// Compact clock (or timer) beside the mixed view's process strip.
+// Compact clock (or timer): two lines beside the strip in landscape, one line under it in portrait.
 static void drawMixedClock() {
-    const int h = SCREEN_H - MIX_STRIP_Y;
-    renderRegion(CLOCK_X, MIX_STRIP_Y, CLOCK_W, h, [&] {
-        card(CLOCK_X, MIX_STRIP_Y, CLOCK_W, h);
+    MixGeom g = mixGeom();
+    Rect r = g.clock;
+    renderRegion(r.x, r.y, r.w, r.h, [&] {
+        card(r.x, r.y, r.w, r.h);
         char hm[12], date[16];
         if (timerMode() != TM_NONE) {
             formatTimer(hm, sizeof(hm));
             strcpy(date, timerDone() ? "TIME'S UP" : timerMode() == TM_TIMER ? "TIMER" : "STOPWATCH");
             if (timerDone() && (millis() / 500) % 2)
-                canvas.fillRoundRect(CLOCK_X + 2, MIX_STRIP_Y + 2, CLOCK_W - 4, h - 4, CARD_RADIUS, theme.critical);
+                canvas.fillRoundRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4, CARD_RADIUS, theme.critical);
         } else if (clockValid()) {
             strlcpy(hm, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(hm));
             formatDate(date, sizeof(date));
@@ -575,24 +621,34 @@ static void drawMixedClock() {
         }
         char *t = hm;
         while (*t == ' ') t++;
+        int cx = r.x + r.w / 2;
+        if (g.oneLineClock) {
+            char line[32];
+            snprintf(line, sizeof(line), "%s   %s", t, date);
+            canvas.setStyle(2);
+            canvas.setTextColor(theme.text);
+            printCentered(line, cx, r.y + (r.h - 13) / 2);
+            return;
+        }
         canvas.setStyle(2);
         canvas.setTextColor(theme.text);
-        printCentered(t, CLOCK_X + CLOCK_W / 2, MIX_STRIP_Y + 10);
+        printCentered(t, cx, r.y + 10);
         canvas.setStyle(1);
         canvas.setTextColor(theme.text2);
-        printCentered(date, CLOCK_X + CLOCK_W / 2, MIX_STRIP_Y + 34);
+        printCentered(date, cx, r.y + 34);
     });
 }
 
 void drawMixedPanels() {
-    int tx = settings.mixedSide ? 0 : 240;
-    renderRegion(tx, 0, 240, 80, [&] { drawMiniTile(cpuPanel, tx, 0, 240, 80); });
-    renderRegion(tx, 80, 240, 80, [&] { drawMiniTile(ramPanel, tx, 80, 240, 80); });
-    renderRegion(0, MIX_PANEL_Y, 240, MIX_PANEL_H,
-                 [&] { drawStandardPanel(diskPanel, 0, MIX_PANEL_Y, 240, MIX_PANEL_H, 113); });
-    renderRegion(240, MIX_PANEL_Y, 240, MIX_PANEL_H,
-                 [&] { drawStandardPanel(netPanel, 240, MIX_PANEL_Y, 240, MIX_PANEL_H, 113); });
-    drawMixedStrip();
+    MixGeom g = mixGeom();
+    renderRegion(g.cpu.x, g.cpu.y, g.cpu.w, g.cpu.h, [&] { drawMiniTile(cpuPanel, g.cpu.x, g.cpu.y, g.cpu.w, g.cpu.h); });
+    renderRegion(g.ram.x, g.ram.y, g.ram.w, g.ram.h, [&] { drawMiniTile(ramPanel, g.ram.x, g.ram.y, g.ram.w, g.ram.h); });
+    renderRegion(g.disk.x, g.disk.y, g.disk.w, g.disk.h,
+                 [&] { drawStandardPanel(diskPanel, g.disk.x, g.disk.y, g.disk.w, g.disk.h, 113); });
+    renderRegion(g.net.x, g.net.y, g.net.w, g.net.h,
+                 [&] { drawStandardPanel(netPanel, g.net.x, g.net.y, g.net.w, g.net.h, 113); });
+    drawMixedStrip(g.strip);
+    drawMixedClock();
 }
 
 void mixedShow() {
@@ -605,9 +661,13 @@ void mixedStep(int delta) {
     drawMixedPhoto();
 }
 
+static bool inRect(Rect r, int x, int y) {
+    return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
 bool timerAreaHit(int x, int y) {
-    if (settings.view == VIEW_DASHBOARD) return x >= CLOCK_X && y >= tableGeom().y;
-    if (settings.view == VIEW_MIXED) return x >= CLOCK_X && y >= MIX_STRIP_Y;
+    if (settings.view == VIEW_DASHBOARD) return inRect(clockRect(), x, y);
+    if (settings.view == VIEW_MIXED) return inRect(mixGeom().clock, x, y);
     return albumBadgeHit(x, y);
 }
 
@@ -635,8 +695,7 @@ void mixedTick() {
 
 // Tap on the photo = next picture; anywhere else opens the menu (returns false).
 bool mixedTap(int x, int y) {
-    int px = mixedPhotoX();
-    if (x < px || x >= px + MIX_PHOTO_W || y >= MIX_PHOTO_H) return false;
+    if (!inRect(mixGeom().photo, x, y)) return false;
     if (mixedCount > 0) mixedIndex = (mixedIndex + 1) % mixedCount;
     drawMixedPhoto();
     return true;

@@ -81,7 +81,7 @@ static void describe(int id, ButtonText &t) {
         snprintf(t.value, sizeof(t.value), "every %ds", SLIDE_SECONDS[settings.slideIdx]);
         break;
     case B_ROTATE:
-        t.caption = "rotate (portrait: album)";
+        t.caption = "rotate";
         strcpy(t.value, ROTATION_NAMES[rotationIndex()]);
         break;
     case B_MORE: strcpy(t.value, "More..."); break;

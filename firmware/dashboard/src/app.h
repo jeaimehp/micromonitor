@@ -186,7 +186,7 @@ bool timerAreaHit(int x, int y);    // is (x, y) on the clock/timer area of the 
 // ---- Album view (album.cpp) ----
 const int NUM_SLIDE_OPTIONS = 3;
 extern const uint8_t SLIDE_SECONDS[NUM_SLIDE_OPTIONS];
-bool portraitActive();              // album in portrait: the only view that rotates to portrait
+bool portraitActive();              // portrait rotation is in effect (any view; the menu stays landscape)
 void albumShow();                   // (re)draw the current picture
 void albumTick();                   // slideshow timer
 bool albumTap(int x, int y);        // edges = prev/next; false for the middle (opens the menu)

@@ -9,7 +9,8 @@ static uint32_t lastChange = 0;
 static bool showingMessage = false;
 
 bool portraitActive() {
-    return settings.view == VIEW_ALBUM && settings.albumPortrait && !menuOpen;
+    // Portrait applies to every view (each has a portrait layout); the menu itself stays landscape.
+    return settings.albumPortrait && !menuOpen;
 }
 
 static void drawMessage(const char *title, const char *line1, const char *line2) {
