@@ -31,6 +31,9 @@ struct Metrics {
 Metrics metrics;
 uint32_t samples = 0;
 uint32_t parseErrors = 0;
+uint32_t lastSampleMs = 0;
+bool stale = true;
+const uint32_t STALE_MS = 6000;  // 3 missed samples
 
 bool parseMetrics(const char *line, Metrics &m) {
     JSONValue root = JSONValue::parseCopy(line);
@@ -158,6 +161,8 @@ const uint16_t C_GRID = rgb(0x383835);
 const uint16_t C_TEXT = rgb(0xffffff);
 const uint16_t C_TEXT2 = rgb(0xc3c2b7);
 const uint16_t C_SERIES[2] = {rgb(0x3987e5), rgb(0xd95926)};
+const uint16_t C_GOOD = rgb(0x0ca30c);
+const uint16_t C_CRITICAL = rgb(0xd03b3b);
 
 // ---- Graph panels ----
 const int PANEL_W = 240;
@@ -326,6 +331,10 @@ void drawTable() {
     canvas.setTextColor(C_TEXT2);
     canvas.setCursor(GRAPH_X, 5);
     canvas.print("TOP PROCESSES");
+    // Connection status (dot + label, so it does not rely on color alone).
+    canvas.fillCircle(150, 8, 3, stale ? C_CRITICAL : C_GOOD);
+    canvas.setCursor(158, 5);
+    canvas.print(stale ? (samples ? "NO HOST DATA" : "WAITING FOR HOST") : "LIVE");
     printRight("CPU%", COL_CPU_RIGHT, 5);
     printRight("MEM%", COL_MEM_RIGHT, 5);
     canvas.push(0, TABLE_Y);
@@ -387,6 +396,10 @@ void setup() {
 }
 
 void loop() {
+    if (!stale && millis() - lastSampleMs > STALE_MS) {
+        stale = true;
+        drawTable();
+    }
     if (!readLine()) return;
     if (!parseMetrics(lineBuf, metrics)) {
         parseErrors++;
@@ -394,8 +407,10 @@ void loop() {
         return;
     }
     samples++;
+    lastSampleMs = millis();
+    stale = false;
     uint32_t t0 = millis();
     updateDashboard();
-    Serial.printlnf("ack %lu c=%.1f p=%d draw=%lums", (unsigned long)samples, metrics.cpu, metrics.numProcs,
-                    (unsigned long)(millis() - t0));
+    Serial.printlnf("ack %lu c=%.1f p=%d draw=%lums free=%lu", (unsigned long)samples, metrics.cpu, metrics.numProcs,
+                    (unsigned long)(millis() - t0), (unsigned long)System.freeMemory());
 }
