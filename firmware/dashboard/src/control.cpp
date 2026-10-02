@@ -46,14 +46,21 @@ bool applySetting(const char *key, int v) {
     return true;
 }
 
+// Hold: the slideshow stops advancing on its own (manual next/previous still work). Not saved across reboots.
+static bool photoHold = false;
+
+bool photoHeld() {
+    return photoHold;
+}
+
 int currentRotation() {
     return rotationOf();
 }
 
 void reportState() {
-    Serial.printf("state view=%d theme=%d layout=%d folder=%d slides=%d slidecustom=%d rot=%d badge=%d side=%d lphoto=%d themes=",
+    Serial.printf("state view=%d theme=%d layout=%d folder=%d slides=%d slidecustom=%d rot=%d badge=%d side=%d lphoto=%d hold=%d themes=",
                   settings.view, settings.themeIdx, settings.layout, settings.folder, settings.slideIdx, settings.slideCustom,
-                  rotationOf(), settings.clockBadge, settings.mixedSide, settings.lcarsPhoto);
+                  rotationOf(), settings.clockBadge, settings.mixedSide, settings.lcarsPhoto, photoHold);
     for (int i = 0; i < themeCount(); i++) Serial.printf("%s%s", i ? "," : "", themeName(i));
     Serial.println();
 }
@@ -78,6 +85,11 @@ void handleCommand(const char *line) {
         runCalibration();
         uiBusy = false;
         redrawView();
+        return;
+    }
+    if (!strcmp(key, "hold")) {
+        photoHold = n == 2 ? v != 0 : !photoHold;
+        reportState();
         return;
     }
     if (!strcmp(key, "next") || !strcmp(key, "prev")) {

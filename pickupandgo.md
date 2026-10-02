@@ -276,6 +276,9 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Hold (user request): "cmd hold 0|1" (toggle without a value) sets a runtime photoHold (NOT saved across reboots); albumTick and
+  mixedTick (also the LCARS photo) skip automatic advance while held; manual next/prev still work. state adds hold=.
+  µMonitor: Pictures > Hold Current Photo (checkbox follows state) + Next Picture.
 - Tron (user request, from a Tron: Legacy still of Flynn's terminal): theme "Tron" (layout=tron; text #d8fbff, glow = button #14505a,
   chrome = accent #bff6ff; series #1ea0bc/#d9772e validated on black). LAYOUT_TRON = index 5 ("Tron"). dashboard_view.cpp:
   tronGeom() (landscape: top window 288 wide + terminal 188; portrait: top 262 tall + terminal 214), tronText() (native font

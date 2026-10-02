@@ -131,6 +131,7 @@ void albumTick() {
     uint32_t interval = slideSeconds() * 1000;
     // Retry soon after a message (e.g. the host just came back); otherwise follow the slideshow interval.
     if (albumCount == 1 && !showingMessage) return;  // a single picture never needs reloading
+    if (photoHeld() && !showingMessage) return;       // held: stay on this picture
     if (millis() - lastChange >= (showingMessage ? 3000 : interval)) albumStep(1);
 }
 

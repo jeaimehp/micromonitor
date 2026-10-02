@@ -176,7 +176,8 @@ bool fetchPicture(int folder, int n, int x, int y, int w, int h, int &count);
 // ---- Control (control.cpp): settings shared by the touch menu and µMonitor commands; timer/stopwatch ----
 bool applySetting(const char *key, int value);  // keys: view theme layout folder slides rot badge side
 int currentRotation();              // 0 normal, 1 flipped, 2 portrait, 3 portrait flipped
-void reportState();                 // "state view=.. theme=.. ... themes=a,b,c" for µMonitor's menu
+void reportState();
+bool photoHeld();                   // "cmd hold 1": keep the current photo (no automatic slideshow advance)                 // "state view=.. theme=.. ... themes=a,b,c" for µMonitor's menu
 void handleCommand(const char *line);  // "cmd <key> <value>" / "cmd next|prev|calibrate|state"
 enum TimerMode { TM_NONE, TM_TIMER, TM_STOPWATCH };
 void setTimerState(int mode, float seconds, bool running);

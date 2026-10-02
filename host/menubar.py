@@ -89,6 +89,11 @@ class DashboardApp(rumps.App):
         pictures.add(rumps.MenuItem("Add Pictures…", callback=self.add_pictures))
         pictures.add(rumps.MenuItem("Choose Photos Folder…", callback=self.choose_folder))
         pictures.add(rumps.MenuItem("Open Photos Folder", callback=self.open_folder))
+        pictures.add(None)
+        self.hold_item = rumps.MenuItem("Hold Current Photo",
+                                        callback=lambda item: self.send(f"hold {0 if item.state else 1}"))
+        pictures.add(self.hold_item)
+        pictures.add(rumps.MenuItem("Next Picture", callback=lambda _: self.send("next")))
 
         timer = rumps.MenuItem("Timer")
         for m in TIMER_PRESETS:
@@ -273,6 +278,7 @@ class DashboardApp(rumps.App):
             item.state = int(st.get("theme") == i)
         self.badge_item.state = int(st.get("badge", 0) == 1)
         self.lphoto_item.state = int(st.get("lphoto", 0) == 1)
+        self.hold_item.state = int(st.get("hold", 0) == 1)
         custom = st.get("slides") == SLIDE_CUSTOM
         self.slide_custom_item.state = int(custom)
         self.slide_custom_item.title = (f"Custom ({self._duration(st.get('slidecustom', 0))})…" if custom else "Custom…")

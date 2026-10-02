@@ -200,7 +200,8 @@ because the login item remembers where the app was.
 | ![Display submenu](docs/images/menubar_display.png) | ![Pictures submenu](docs/images/menubar_pictures.png) |
 
 - **Display**: the same settings as the touch menu, plus Next/Previous Picture and Calibrate Touch…
-- **Pictures**: Add Pictures… (copied into `~/Pictures/µMonitor`), Choose Photos Folder…, Open Photos Folder.
+- **Pictures**: Add Pictures… (copied into `~/Pictures/µMonitor`), Choose Photos Folder…, Open Photos Folder,
+  **Hold Current Photo** (pauses the slideshow on the current picture; Next Picture still works).
   JPG, PNG, HEIC and more are supported. Photos take 1–3 s to load and paint in from the top.
 - **Timer**: 1/5/10/15/25/60 minutes, Custom…, Pause/Resume, Cancel. **Stopwatch**: Start/Stop, Reset.
   When a timer finishes, the display flashes and the Mac shows a notification. While a timer runs, the menu bar title

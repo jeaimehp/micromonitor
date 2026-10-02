@@ -1127,6 +1127,7 @@ void mixedTick() {
     uint32_t interval = slideSeconds() * 1000;
     // A single picture never needs reloading; an empty or failed folder is retried every 3s.
     if (mixedCount == 1) return;
+    if (photoHeld() && mixedCount > 0) return;  // held: stay on this picture
     if (millis() - mixedChange >= (mixedCount > 0 ? interval : 3000)) {
         if (mixedCount > 0) mixedIndex = (mixedIndex + 1) % mixedCount;
         drawMixedPhoto();
