@@ -276,6 +276,12 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Tron (user request, from a Tron: Legacy still of Flynn's terminal): theme "Tron" (layout=tron; text #d8fbff, glow = button #14505a,
+  chrome = accent #bff6ff; series #1ea0bc/#d9772e validated on black). LAYOUT_TRON = index 5 ("Tron"). dashboard_view.cpp:
+  tronGeom() (landscape: top window 288 wide + terminal 188; portrait: top 262 tall + terminal 214), tronText() (native font
+  scaled, drawn 4x offset in the glow color then on top), tronWindow() (title bar, menu row, border, scrollbar, diagonal streaks),
+  drawTronTop (top header lines, inverted header, 5 rows, CPU block-bar history), drawTronTerm (whoami/date/grid -s/link,
+  or the timer). Theme indexes now: 0 Dark 1 Light 2 Retro Green 3 Amber 4 Ocean 5 Synthwave 6 Solarized 7 LCARS 8 Tron 9 High Contrast.
 - LCARS (user request; priorities CPU/GPU, RAM, time+date, photo optional): theme "LCARS" (layout=lcars) in make_themes.py
   (frame colors accent #ff9900 / button #cc99cc / text #ffcc99; series #6f86f5/#d9772e pass the validator on black). LAYOUT_LCARS is
   index 4 ("LCARS"). dashboard_view.cpp: lcarsGeom() (landscape side 96, portrait 64; bars 24; timeBox/photo/cpuBox/ramBox),

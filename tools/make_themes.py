@@ -14,7 +14,7 @@ import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 KEYS = ["surface", "grid", "text", "text2", "series1", "series2", "good", "critical", "separator", "button", "accent"]
-LAYOUTS = ["quad", "stacked", "focus", "tiles", "lcars"]
+LAYOUTS = ["quad", "stacked", "focus", "tiles", "lcars", "tron"]
 BUILTIN = ["Dark", "Light"]
 
 THEMES = [
@@ -44,6 +44,11 @@ THEMES = [
     dict(name="LCARS", layout="lcars", surface="000000", grid="2b2b45", text="ffcc99", text2="cc99cc",
          series1="6f86f5", series2="d9772e", good="99cc66", critical="cc4444", separator="000000",
          button="cc99cc", accent="ff9900"),
+    # Tron: Flynn's terminal from Tron: Legacy. Pale cyan text (with a teal glow = button) on black, pale window chrome
+    # (accent); graph colors are Tron cyan and Clu orange (validated on black).
+    dict(name="Tron", layout="tron", surface="000000", grid="0f3138", text="d8fbff", text2="7fdfee",
+         series1="1ea0bc", series2="d9772e", good="4fe3a6", critical="ff5a3c", separator="000000",
+         button="14505a", accent="bff6ff"),
     dict(name="High Contrast", layout="tiles", surface="000000", grid="666666", text="ffffff", text2="e6e6e6",
          series1="3987e5", series2="c98500", good="0ca30c", critical="ff4040", separator="4d4d4d",
          button="1a1a1a", accent="ffffff"),

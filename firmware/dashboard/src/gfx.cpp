@@ -20,7 +20,7 @@ void Canvas::setStyle(int style) {
     baseline = f ? -(int8_t)f->glyph['H' - f->first].yOffset : 0;
 }
 
-const char *const LAYOUT_NAMES[LAYOUT_COUNT] = {"Quad", "Stacked", "Focus", "Tiles", "LCARS"};
+const char *const LAYOUT_NAMES[LAYOUT_COUNT] = {"Quad", "Stacked", "Focus", "Tiles", "LCARS", "Tron"};
 Theme theme;
 
 static const int NUM_BUILTIN = sizeof(BUILTIN_THEMES) / sizeof(BUILTIN_THEMES[0]);

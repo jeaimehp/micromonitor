@@ -659,6 +659,175 @@ static void drawLcarsTimeOnly() {
     lcarsRegion(g.timeBox, [&] { drawLcarsTime(g); });
 }
 
+// ---- Tron layout: Flynn's terminal (Tron: Legacy) — a "top" window and a shell window ----
+struct TronGeom {
+    Rect top, term;
+};
+
+static TronGeom tronGeom() {
+    if (portrait()) return {{0, 0, 320, 262}, {0, 266, 320, 214}};
+    return {{0, 0, 288, 320}, {292, 0, 188, 320}};
+}
+
+static bool tronActive() {
+    return settings.view == VIEW_DASHBOARD && settings.layout == LAYOUT_TRON;
+}
+
+// Blocky monospace pixel text (the native font, scaled) with a soft glow: the text drawn offset in the glow color
+// first, then on top in the main color.
+static void tronText(int x, int y, const char *text, int size, uint16_t color) {
+    canvas.setStyle(1);
+    canvas.setTextSize(size);
+    canvas.setTextColor(theme.button);
+    static const int8_t OFF[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    for (auto &o : OFF) {
+        canvas.cursor(x + o[0], y + o[1]);
+        canvas.print(text);
+    }
+    canvas.setTextColor(color);
+    canvas.cursor(x, y);
+    canvas.print(text);
+    canvas.setTextSize(1);
+}
+
+// Terminal window chrome: pale title bar, menu row, border, scrollbar, and faint diagonal "glass" streaks.
+static void tronWindow(Rect r, const char *title, int thumbFrom) {
+    canvas.fillRect(r.x, r.y, r.w, r.h, theme.surface);
+    for (int i = -2; i < 8; i++) {
+        int x0 = r.x + i * 70;
+        canvas.drawLine(x0, r.y + r.h, x0 + 140, r.y + 26, theme.grid);
+        canvas.drawLine(x0 + 1, r.y + r.h, x0 + 141, r.y + 26, theme.grid);
+    }
+    canvas.drawRect(r.x, r.y, r.w, r.h, theme.accent);
+    canvas.fillRect(r.x, r.y, r.w, 12, theme.accent);
+    canvas.setStyle(1);
+    canvas.setTextColor(theme.button);
+    printCentered(title, r.x + r.w / 2, r.y + 2);
+    canvas.setTextColor(theme.text2);
+    canvas.cursor(r.x + 6, r.y + 15);
+    printFit("File  Edit  View  Terminal  Tabs  Help", r.w - 12);
+    canvas.drawFastHLine(r.x, r.y + 25, r.w, theme.button);
+    int sx = r.x + r.w - 9, sy = r.y + 27, sh = r.h - 29;
+    canvas.drawRect(sx, sy, 8, sh, theme.accent);
+    canvas.fillRect(sx + 2, sy + thumbFrom * sh / 100, 4, sh - thumbFrom * sh / 100 - 2, theme.accent);
+}
+
+static void drawTronTop(const TronGeom &g) {
+    Rect r = g.top;
+    tronWindow(r, "top - micromonitor", 70);
+    const int x = r.x + 6, w = r.w - 18;
+    int y = r.y + 30;
+    char line[64];
+    char now[12] = "--:--:--";
+    if (clockValid()) strlcpy(now, Time.format(Time.now(), "%H:%M:%S").c_str(), sizeof(now));
+    snprintf(line, sizeof(line), "top - %s  cpu %.1f%%  gpu %.1f%%", now, metrics.cpu, metrics.gpu);
+    tronText(x, y, line, 1, theme.text);
+    snprintf(line, sizeof(line), "Mem: %.1fG used, %.1fG free, %.0fG total", metrics.ramUsed,
+             max(0.0f, metrics.ramTotal - metrics.ramUsed), metrics.ramTotal);
+    tronText(x, y += 10, line, 1, theme.text);
+    snprintf(line, sizeof(line), "Dsk: rd %.1f wr %.1f MB/s, %.0f%% used", metrics.diskRead, metrics.diskWrite, metrics.disk);
+    tronText(x, y += 10, line, 1, theme.text);
+    snprintf(line, sizeof(line), "Net: rx %.0f tx %.0f KB/s", metrics.netRx, metrics.netTx);
+    tronText(x, y += 10, line, 1, theme.text);
+    // Inverted column header, like top's highlighted header row.
+    y += 14;
+    canvas.fillRect(x - 2, y - 2, w + 2, 19, theme.text2);
+    canvas.setStyle(1);
+    canvas.setTextSize(2);
+    canvas.setTextColor(theme.surface);
+    canvas.cursor(x, y);
+    canvas.print("%CPU %MEM COMMAND");
+    canvas.setTextSize(1);
+    y += 20;
+    const int rows = portrait() ? 5 : 5;
+    for (int i = 0; i < rows && i < metrics.numProcs; i++) {
+        const Proc &p = metrics.procs[i];
+        char name[16];
+        int maxChars = (w - 12 * 11) / 12;  // what fits after the two number columns
+        snprintf(name, sizeof(name), "%.*s", max(4, min(maxChars, 15)), p.name);
+        snprintf(line, sizeof(line), "%4.0f %4.1f %s", p.cpu, p.mem, name);
+        tronText(x, y + i * 18, line, 2, theme.text);
+    }
+    // CPU history as glowing block bars along the bottom.
+    int by = y + rows * 18 + 6, bh = r.y + r.h - 6 - by;
+    if (bh >= 12) {
+        tronText(x, by, "cpu", 1, theme.text2);
+        int bx0 = x + 24, n = (w - 26) / 3;
+        for (int i = 0; i < n && i < cpuPanel.count; i++) {
+            float v = constrain(histAt(cpuPanel, 0, i), 0.0f, 100.0f);
+            int hgt = max(1, (int)(v / 100.0f * bh));
+            int bx = bx0 + (n - 1 - i) * 3;
+            canvas.fillRect(bx, by + bh - hgt, 2, hgt, theme.series[0]);
+        }
+    }
+}
+
+static void drawTronTerm(const TronGeom &g) {
+    Rect r = g.term;
+    tronWindow(r, "Terminal", 85);
+    const int x = r.x + 6, lh = portrait() ? 18 : 22;
+    int y = r.y + 32;
+    char line[40];
+    auto out = [&](const char *text, uint16_t color) {
+        tronText(x, y, text, 2, color);
+        y += lh;
+    };
+    if (timerMode() != TM_NONE) {
+        char digits[12];
+        formatTimer(digits, sizeof(digits));
+        bool flash = timerDone() && (millis() / 500) % 2;
+        out(timerMode() == TM_TIMER ? "$ timer" : "$ stopwatch", theme.text2);
+        if (timerDone()) out("TIME'S UP", flash ? theme.critical : theme.text);
+        else {
+            snprintf(line, sizeof(line), "%s%s", digits, timerRunning() ? "" : " (p)");
+            out(line, theme.text);
+        }
+    } else {
+        out("$ whoami", theme.text2);
+        out("flynn", theme.text);
+    }
+    out("$ date", theme.text2);
+    if (clockValid()) {
+        char hm[12], date[16];
+        strlcpy(hm, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(hm));
+        formatDate(date, sizeof(date));
+        char *t = hm;
+        while (*t == ' ') t++;
+        if (portrait()) {
+            snprintf(line, sizeof(line), "%s %s", t, date);
+            out(line, theme.text);
+        } else {
+            out(t, theme.text);
+            out(date, theme.text);
+        }
+    } else {
+        out("no time yet", theme.text);
+    }
+    out("$ grid -s", theme.text2);
+    snprintf(line, sizeof(line), "CPU %.0f%% GPU %.0f%%", metrics.cpu, metrics.gpu);
+    out(line, theme.text);
+    snprintf(line, sizeof(line), "MEM %.0f%%", metrics.ram);
+    out(line, theme.text);
+    out(stale ? (samples ? "LINK LOST" : "WAITING") : "LINK ACTIVE", stale ? theme.critical : theme.good);
+    // Prompt with a block cursor.
+    tronText(x, y, "#", 2, theme.text);
+    canvas.fillRect(x + 16, y, 10, 14, theme.text);
+}
+
+static void drawTron() {
+    TronGeom g = tronGeom();
+    renderRegion(g.top.x, g.top.y, g.top.w, g.top.h, [&] { drawTronTop(g); });
+    renderRegion(g.term.x, g.term.y, g.term.w, g.term.h, [&] { drawTronTerm(g); });
+    // The gap between the windows.
+    Rect gap = portrait() ? Rect{0, 262, 320, 4} : Rect{288, 0, 4, 320};
+    renderRegion(gap.x, gap.y, gap.w, gap.h, [] { canvas.fillScreen(theme.surface); });
+}
+
+static void drawTronTermOnly() {
+    TronGeom g = tronGeom();
+    renderRegion(g.term.x, g.term.y, g.term.w, g.term.h, [&] { drawTronTerm(g); });
+}
+
 // ---- Layouts ----
 // Focus layout geometry: the main panel, then a row of 3 mini tiles (tap one to focus it).
 struct FocusGeom {
@@ -680,6 +849,10 @@ void drawDashboard() {
     const int W = tft.width();
     if (settings.layout == LAYOUT_LCARS) {
         drawLcars();
+        return;
+    }
+    if (settings.layout == LAYOUT_TRON) {
+        drawTron();
         return;
     }
     switch (settings.layout) {
@@ -725,6 +898,10 @@ void drawDashboard() {
 void drawDashboardStatus() {
     if (settings.layout == LAYOUT_LCARS) {
         drawLcars();  // the frame shows the link status; cheap enough to redraw whole (the photo is untouched)
+        return;
+    }
+    if (settings.layout == LAYOUT_TRON) {
+        drawTron();
         return;
     }
     int y = tableGeom().y;
@@ -922,6 +1099,7 @@ static bool inRect(Rect r, int x, int y) {
 
 bool timerAreaHit(int x, int y) {
     if (lcarsActive()) return inRect(lcarsGeom().timeBox, x, y);
+    if (tronActive()) return inRect(tronGeom().term, x, y);
     if (settings.view == VIEW_DASHBOARD) return inRect(clockRect(), x, y);
     if (settings.view == VIEW_MIXED) return inRect(mixGeom().clock, x, y);
     return albumBadgeHit(x, y);
@@ -929,6 +1107,7 @@ bool timerAreaHit(int x, int y) {
 
 void drawTimerTick() {
     if (lcarsActive()) drawLcarsTimeOnly();
+    else if (tronActive()) drawTronTermOnly();
     else if (settings.view == VIEW_DASHBOARD) drawClock();
     else if (settings.view == VIEW_MIXED) drawMixedClock();
     else drawClockBadge();

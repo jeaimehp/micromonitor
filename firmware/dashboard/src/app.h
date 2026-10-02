@@ -76,7 +76,7 @@ private:
     int16_t baseline = 0;
 };
 
-enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_LCARS, LAYOUT_COUNT };
+enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_LCARS, LAYOUT_TRON, LAYOUT_COUNT };
 extern const char *const LAYOUT_NAMES[LAYOUT_COUNT];
 
 // Theme as stored (RGB888, in the same order as the .thm keys), and as used for drawing (RGB565).

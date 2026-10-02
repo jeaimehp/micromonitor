@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Mirrors of the device menu; the device reports each setting as the index of its option.
 VIEWS = ["Dashboard", "Album", "Mixed"]
-LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles", "LCARS"]
+LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles", "LCARS", "Tron"]
 FOLDERS = ["Photos", "Motivation"]
 SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds", "Every minute", "Every 5 minutes",
           "Every 30 minutes"]

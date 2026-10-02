@@ -30,13 +30,25 @@ under More → *photo in LCARS layout*, or µMonitor **Display → Photo in LCAR
 |---|---|---|
 | ![LCARS landscape](docs/images/lcars_landscape.png) | ![LCARS without photo](docs/images/lcars_nophoto.png) | ![LCARS portrait](docs/images/lcars_portrait.png) |
 
+### Tron theme
+
+Inspired by Flynn's terminal in *Tron: Legacy*: a live `top` window (CPU/GPU, memory, disk, network, the top
+processes and a CPU history strip) next to a shell session (`whoami`, `date`, `grid -s` with CPU/GPU/MEM and the link
+status), in glowing pixel text with pale window chrome. A running timer shows in the terminal. Pick it with
+**Theme → Tron**.
+
+| Landscape | Portrait |
+|---|---|
+| ![Tron landscape](docs/images/tron_landscape.png) | ![Tron portrait](docs/images/tron_portrait.png) |
+
 ## Features
 
 - **Live graphs**, refreshed every 2 seconds: CPU and GPU utilization, RAM, disk read/write and usage, network rx/tx
 - **Top 5 processes** with CPU and memory, plus a **date/time tile**
-- **5 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
-  and **LCARS** (see below)
-- **9 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, High Contrast (colorblind-safe graph colors)
+- **6 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
+  **LCARS** and **Tron** (see below)
+- **10 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, Tron, High Contrast
+  (colorblind-safe graph colors)
 - **Album view**: a slideshow of your photos or the built-in pixel-art "motivation" cards; tap the edges for
   previous/next; optional clock badge
 - **Landscape or portrait**: every view has a portrait layout too; stand the display upright and choose Portrait
