@@ -42,13 +42,38 @@ Each step ends with: test, git commit, update this file.
 | 9 | Top-5 process table | DONE |
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | DONE |
 | 11 | macOS menu bar app "µMonitor" (user request): rumps + py2app, status icon | DONE (menu UI awaiting user visual check) |
+| 12 | Touch bring-up: detect STMPE610 (SPI, CS D3) vs TSC2007 (I2C 0x48), raw readings, calibration screen | TODO |
+| 13 | Touch menu overlay + persisted settings (EEPROM) + rotation | TODO |
+| 14 | Themes + layouts in firmware (built-in default; layouts Quad/Stacked/Focus/Tiles; mixed photo left/right) | TODO |
+| 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | TODO |
+| 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | TODO |
+| 17 | Firmware SD support: list folders, load themes from SD | TODO |
+| 18 | Album view: slideshow, tap left/right edge = prev/next, middle = menu | TODO |
+| 19 | Mixed view: half-size photo + compact graphs | TODO |
+| 20 | Soak test with view switching, docs | TODO |
+
+## Phase 2 spec (steps 12-20, approved by the user)
+- Touch: tapping opens a full-screen menu with big buttons (>=60px). Tap outside or wait 10s to close.
+  Menu items: View (Dashboard/Album/Mixed), Album folder (/photos | /motivation), slideshow speed (5/10/30s),
+  Theme (cycle through SD themes, with a built-in dark fallback), Layout (separate from the theme), Rotate, Recalibrate touch.
+- Rotation decision (the user approved the recommended default): a 180 deg flip for ALL views, plus portrait 90/270 for the ALBUM view only.
+- Layouts: Quad (current 2x2 + top-5), Stacked (4 full-width strips with about 8 min of history + top-3), Focus (one big graph chosen by tap,
+  3 small tiles + top-5), Tiles (big numbers + sparklines + top-5). Mixed view: photo left / photo right.
+- Theme files /themes/*.thm (key=value): name, surface, grid, text, text2, series1, series2, good, critical, layout.
+  Examples: Dark/Quad, Light/Quad, Retro Green/Stacked, Amber/Tiles, Ocean/Focus, Synthwave/Tiles, Solarized/Stacked, High Contrast/Tiles.
+  Validate each series pair with the dataviz skill's validate_palette.js against that theme's surface.
+- Images: raw 480x320 RGB565 big-endian files (.565) made by a Mac converter; mixed view downsamples 2x on load.
+  SD folders: /photos (the user's photos; samples for now, since the user gave no folder), /motivation (generated pixel art + captions), /themes.
+- SD format: if the card is exFAT, ASK the user before reformatting to FAT32 (that erases the card). Not yet confirmed.
+- Settings persist in EEPROM (they work without SD). The touch calibration is also stored in EEPROM.
 
 ## Layout (480x320)
 - A 2x2 grid of graph panels at the top, each about 240x105: CPU, RAM, Disk, Net
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-9 are complete.
+Steps 0-11 are complete. NEXT: step 12 (touch bring-up). See "Phase 2 spec" above.
+(Earlier notes:) Steps 0-9 are complete.
 Step 10: stale indicator (LIVE / NO HOST DATA / WAITING FOR HOST in the table header) is done and verified by webcam; run.sh, README.md and
 tools/install-launchd.sh (NOT installed; it changes login items, so ask the user) are written. 12-min soak PASSED: 360/360 acks, 0 errors,
 free=28328 constant, draw 213-223ms.
