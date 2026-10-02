@@ -49,12 +49,15 @@ Each step ends with: test, git commit, update this file.
 | 15b | Date/time (user request): host sends local time, firmware clock; shown on dashboard header, album badge (menu toggle), mixed | DONE for dashboard (album badge + mixed come with steps 18/19) |
 | 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | DONE (copied + ejected; user asked to move it to the wing) |
 | 17 | ~~Firmware SD support~~ ABANDONED: the card only mounted 10-50% of the time (see notes). The user chose to SKIP SD and STREAM from the Mac | REPLACED |
-| 17s | Streaming: host content (themes, motivation PNGs, photos folder) + req/pic protocol in the Streamer; SD code removed from firmware; themes requested on connect | TODO |
+| 17s | Streaming: host content (themes, motivation PNGs, photos folder) + req/pic protocol in the Streamer; SD code removed from firmware; themes requested on connect | DONE |
 | 18 | Album view: streamed pictures, slideshow 5/10/30s, tap left/right third = prev/next, middle = menu, portrait (album only), clock badge | TODO |
 | 19 | Mixed view: 240x160 streamed photo (left/right) + compact CPU/GPU + RAM, disk/net panels, top process + clock strip | TODO |
-| 19b | Timer + stopwatch (user request): µMonitor menu (timer presets 1/5/10/15/25/60 min + custom, pause/resume, cancel;
-stopwatch start/pause/reset) -> sent in samples as state (start epoch, duration, paused/running); the device ticks it locally every 1s
-and shows a large-digit banner over any view; at zero it flashes TIME'S UP and µMonitor posts a macOS notification | TODO |
+| 19b | µMonitor menu mirror + timer/stopwatch (user requests): host menu gets the device menu choices (View, Theme, Layout, Album folder,
+Slideshow, Rotation, Calibrate) + Pictures (Add Pictures… copies into the photos folder, Choose Photos Folder…, Open Photos Folder) +
+Timer (presets 1/5/10/15/25/60 min, Custom…, Pause/Resume, Cancel) + Stopwatch (Start/Stop, Reset). Sync: host sends `cmd <key> <val>`;
+the device replies `state view=.. theme=.. layout=.. folder=.. slides=.. rot=.. themes=a,b,c` on connect and after every change (menu
+or command) so the checkmarks match. The timer/stopwatch state goes in samples (start epoch, duration/elapsed, running); the device
+ticks locally every 1s and shows a big-digit banner over any view; at zero it flashes TIME'S UP and µMonitor posts a macOS notification | TODO |
 | 20 | Soak test with view switching, docs | TODO |
 
 ## Phase 2 spec (steps 12-20, approved by the user)
@@ -86,7 +89,7 @@ Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + l
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
 SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). The ghost card was removed at the user's request (9 cards now, m01-m09). The SD card still holds the OLD 10-card set (it has a ghost):
 re-copy /motivation (delete the old m*.565 first) the next time the card is in the Mac.
-Step 17 SD was ABANDONED (user decision: stream from the Mac). NEXT: step 17s. History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
+Step 17 SD was ABANDONED (user decision: stream from the Mac). Step 17s (streaming) is DONE. NEXT: step 18 (album view). History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
 mount+list cycles), but the card mounts only about 20-50% of the time and listings stop early, at EVERY clock (1/4/16 MHz), with or
 without touch, with or without DMA. firmware/sdprobe (SD-only, TFT/touch CS held high, byte-by-byte SPI variant of SdFat) reproduces it
 -> most likely PHYSICAL (card not fully seated, or this ADATA 16GB card is poor in SPI mode). Asked the user to reseat the card and,
@@ -144,6 +147,13 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   (cover fit), so there are no .565 files. Portrait requests are 320x480, mixed 240x160.
 - The device reads the payload with Serial.readBytes into canvasBuf strips and pushes them WITHOUT a byte swap (pushRaw).
   JSON sample lines that arrive while it waits for `pic` are still ingested.
+- Code: host/content.py (picture_list, render_picture -> RLE, theme_lines, photos_dir config in
+  ~/Library/Application Support/micromonitor/config.json), Streamer._serve in host/sender.py, firmware hostcontent.cpp
+  (handleThemeLine, fetchPicture/receiveRle). Serial test commands: "pictest F N W H", "rxbench N".
+  tools/uitest.py serves requests too (and has a "send TEXT" step).
+- Themes are requested on the first sample and after the host has been gone for >30s; a completed picture transfer refreshes lastSampleMs.
+- The content/ dir (committed) holds themes/*.thm, motivation/mNN_name_L|P.png, motivation_sheet.png, photos/sonoma_sample.jpg.
+  SD code, sdcard/, sd_convert.py, sdprobe and vendored SdFat were REMOVED.
 - Host content: themes (tools/make_themes.py output) + motivation PNGs (tools/make_pixelart.py) are bundled in µMonitor; the photos
   folder defaults to a bundled sample (Sonoma) and can be changed from the µMonitor menu ("Choose Photos Folder…").
 
@@ -212,6 +222,7 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 17s: streaming from the Mac (themes + RLE pictures), SD removed. Verified: themes 6, pic ok for both folders and the 240x160 size.
 - Step 16: SD card filled (cp -X, no AppleDouble files), md5 verified, ejected.
 - Step 15b: date/time synced from the host and shown in the dashboard header (webcam verified). µMonitor rebuilt.
 - Step 15: pixel-art generator (10 cards x L/P), .565 converter, sample photo (Sonoma). Round-trip verified.

@@ -11,6 +11,7 @@ import time
 
 import serial
 
+import content
 from collector import INTERVAL, Collector, encode
 
 
@@ -37,6 +38,7 @@ class Streamer:
         self.sent = 0
         self.last_ack = ""
         self.last_sample = None
+        self._rx = b""
 
     def stop(self):
         self._stop.set()
@@ -69,14 +71,38 @@ class Streamer:
         self.connected_port = None
 
     def _drain(self):
-        """Read whatever the device has sent back (acks/errors)."""
-        data = self.ser.read(4096)
-        for line in data.decode(errors="replace").splitlines():
-            line = line.strip()
-            if line:
+        """Read whatever the device has sent back: acks/errors, and requests for themes or pictures."""
+        self._rx += self.ser.read(4096)
+        while b"\n" in self._rx:
+            raw, self._rx = self._rx.split(b"\n", 1)
+            line = raw.decode(errors="replace").strip()
+            if not line:
+                continue
+            if self.verbose:
+                log(f"< {line}")
+            if line.startswith("req "):
+                self._serve(line.split())
+            else:
                 self.last_ack = line
-                if self.verbose:
-                    log(f"< {line}")
+
+    def _send_blocking(self, data):
+        # Pictures are large; the device reads them as fast as it can draw, so allow a long write.
+        self.ser.write_timeout = 15
+        try:
+            self.ser.write(data)
+        finally:
+            self.ser.write_timeout = 1
+
+    def _serve(self, parts):
+        if parts[1:2] == ["themes"]:
+            self._send_blocking(("\n".join(content.theme_lines()) + "\n").encode())
+        elif parts[1:2] == ["pic"] and len(parts) == 6:
+            folder, n, w, h = (int(x) for x in parts[2:6])
+            t0 = time.monotonic()
+            count, payload = content.render_picture(folder, n, w, h)
+            self._send_blocking(f"pic {count} {w if count else 0} {h if count else 0} rle\n".encode() + payload)
+            if self.verbose:
+                log(f"served pic folder={folder} n={n} {w}x{h} count={count} in {time.monotonic() - t0:.2f}s")
 
     def run(self, count=0):
         collector = Collector()

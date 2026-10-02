@@ -2,8 +2,9 @@
 """Drive the device UI over serial while streaming real samples.
 
 Usage: uitest.py <script> [--snapdir DIR]
-script: comma-separated steps: "tap X Y", "wait SECONDS", "snap NAME" (webcam photo to SNAPDIR/NAME.jpg).
-Prints every line the device sends (acks, taps, menu events).
+script: comma-separated steps: "tap X Y", "send TEXT" (any line, e.g. "send pictest 1 0 480 320"),
+"wait SECONDS", "snap NAME" (webcam photo to SNAPDIR/NAME.jpg).
+Prints every line the device sends (acks, taps, menu events) and serves its theme/picture requests like µMonitor.
 """
 import argparse
 import glob
@@ -16,6 +17,7 @@ import time
 import serial
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "host"))
+import content  # noqa: E402
 from collector import INTERVAL, Collector, encode  # noqa: E402
 
 ap = argparse.ArgumentParser()
@@ -34,6 +36,17 @@ def send(line):
         ser.write((line + "\n").encode())
 
 
+def serve(parts):
+    with lock:
+        ser.write_timeout = 15
+        if parts[1:2] == ["themes"]:
+            ser.write(("\n".join(content.theme_lines()) + "\n").encode())
+        elif parts[1:2] == ["pic"]:
+            folder, n, w, h = (int(x) for x in parts[2:6])
+            count, payload = content.render_picture(folder, n, w, h)
+            ser.write(f"pic {count} {w if count else 0} {h if count else 0} rle\n".encode() + payload)
+
+
 def reader():
     buf = b""
     while not done.is_set():
@@ -43,6 +56,8 @@ def reader():
             line = line.decode(errors="replace").strip()
             if line:
                 print(f"{time.time() - t0:6.1f} < {line}", flush=True)
+                if line.startswith("req "):
+                    serve(line.split())
 
 
 def streamer():
@@ -58,6 +73,8 @@ for step in [s.strip() for s in args.script.split(",") if s.strip()]:
     print(f"{time.time() - t0:6.1f} > {step}", flush=True)
     if kind == "tap":
         send(step)
+    elif kind == "send":
+        send(step[5:])
     elif kind == "wait":
         time.sleep(float(rest[0]))
     elif kind == "snap":

@@ -35,6 +35,7 @@ struct Metrics {
 extern Metrics metrics;
 extern uint32_t samples;
 extern bool stale;
+extern uint32_t lastSampleMs;
 extern bool uiBusy;  // a blocking screen (e.g. calibration) owns the display; samples are not drawn
 
 // ---- Graphics (gfx.cpp) ----
@@ -94,9 +95,11 @@ extern Canvas canvas;
 extern Theme theme;
 
 void gfxBegin();
+uint8_t *canvasBytes();              // the canvas buffer as raw bytes (CANVAS_PIXELS * 2)
+void pushRaw(int x, int y, int w, int h);  // send w*h big-endian pixels from canvasBytes() as-is
 ThemeSpec BUILTIN_DEFAULT_SPEC();
 bool builtinThemeNamed(const char *name);
-int themeCount();                    // built-in themes, then themes from the SD card
+int themeCount();                    // built-in themes, then themes from µMonitor
 const char *themeName(int i);
 void applyTheme(int i);  // also used at boot; out-of-range indexes fall back to theme 0
 void applyRotation();
@@ -143,22 +146,18 @@ bool pollTap(int &x, int &y);
 void injectTap(int x, int y);   // serial "tap X Y" command, for testing without a finger
 bool runCalibration();          // false if abandoned (30s without a press)
 
-// ---- SD card (sdstore.cpp) ----
-class FatFile;
-const int NUM_FOLDERS = 2;          // 0 = /photos, 1 = /motivation
-const int MAX_SD_THEMES = 12;
-extern const char *const FOLDERS[NUM_FOLDERS];
-bool sdBegin();
-bool sdReady();
-bool sdPoll();                      // retry mounting every 5s; true when the card just became available
-int sdThemeCount();
-const ThemeSpec &sdTheme(int i);
-int pictureCount(int folder, bool portrait);
-bool pictureName(int folder, int n, bool portrait, char *out, size_t len);
-bool openPicture(int folder, const char *name, FatFile &f);
-void sdInfo();                      // serial "sdinfo" command
-void sdList(const char *path);
-void sdTest(int n);      // serial "sdls PATH" command
+// ---- Content streamed from the Mac (hostcontent.cpp) ----
+const int NUM_FOLDERS = 2;          // 0 = photos, 1 = motivation
+const int MAX_HOST_THEMES = 12;
+extern const char *const FOLDER_NAMES[NUM_FOLDERS];
+void requestThemes();               // asks µMonitor for its themes ("req themes")
+int hostThemeCount();
+const ThemeSpec &hostTheme(int i);
+void handleThemeLine(const char *line);
+void handlePictureHeader(const char *line);
+bool picturePending();              // a "pic" header arrived; its binary payload is next on the serial port
+// Fetch picture n of a folder at w x h and draw it at (x, y). count = pictures in the folder (0 = none).
+bool fetchPicture(int folder, int n, int x, int y, int w, int h, int &count);
 
 // ---- Dashboard view (dashboard_view.cpp) ----
 void ingestSample();            // add the latest metrics to the graph history

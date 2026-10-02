@@ -3,12 +3,31 @@
 SYSTEM_MODE(MANUAL);
 SYSTEM_THREAD(ENABLED);
 
+// Larger USB serial receive buffer: with the default one the host can only push about 54 KB/s, which makes
+// streamed pictures slow (a full screen is 300 KB). Device OS calls this hook at startup.
+HAL_USB_USART_Config acquireUSBSerialBuffer() {
+    static uint8_t rxBuf[4096];
+    static uint8_t txBuf[512];
+    HAL_USB_USART_Config conf = {};
+    conf.size = sizeof(conf);
+    conf.rx_buffer = rxBuf;
+    conf.rx_buffer_size = sizeof(rxBuf);
+    conf.tx_buffer = txBuf;
+    conf.tx_buffer_size = sizeof(txBuf);
+    return conf;
+}
+
 Metrics metrics;
 uint32_t samples = 0;
 uint32_t parseErrors = 0;
 uint32_t lastSampleMs = 0;
+uint32_t lastLiveMs = 0;  // last time the host was known to be alive (a sample or a completed transfer)
 bool stale = true;
-bool uiBusy = false;               // a blocking screen (e.g. calibration) owns the display
+bool uiBusy = false;
+struct PicTest {
+    bool pending;
+    int folder, n, w, h;
+} pictest;  // serial "pictest F N W H": fetch and draw a picture at (0, 0)               // a blocking screen (e.g. calibration) owns the display
 const uint32_t STALE_MS = 6000;  // 3 missed samples
 
 bool parseMetrics(const char *line, Metrics &m) {
@@ -107,16 +126,32 @@ static void handleLine() {
         injectTap(tx, ty);
         return;
     }
-    if (!strcmp(lineBuf, "sdtest")) {
-        sdTest(10);
+    if (!strncmp(lineBuf, "thm ", 4)) {
+        handleThemeLine(lineBuf);
         return;
     }
-    if (!strncmp(lineBuf, "sdls ", 5)) {
-        sdList(lineBuf + 5);
+    if (!strncmp(lineBuf, "pic ", 4)) {
+        handlePictureHeader(lineBuf);
         return;
     }
-    if (!strcmp(lineBuf, "sdinfo")) {
-        sdInfo();
+    int benchBytes;
+    if (sscanf(lineBuf, "rxbench %d", &benchBytes) == 1) {
+        // Receive benchBytes raw bytes as fast as possible: tight available()/read() loop vs readBytes().
+        uint32_t t0 = millis();
+        int got = 0;
+        uint8_t *buf = canvasBytes();
+        while (got < benchBytes && millis() - t0 < 20000) {
+            int avail = Serial.available();
+            while (avail-- > 0 && got < benchBytes) buf[got++ % (CANVAS_PIXELS * 2)] = Serial.read();
+        }
+        uint32_t dt = millis() - t0;
+        Serial.printlnf("rxbench %d bytes in %lums = %lu KB/s", got, (unsigned long)dt,
+                        (unsigned long)(dt ? got / dt : 0));
+        return;
+    }
+    int f, n, w, h;
+    if (sscanf(lineBuf, "pictest %d %d %d %d", &f, &n, &w, &h) == 4) {
+        pictest = {true, f, n, w, h};
         return;
     }
     if (!parseMetrics(lineBuf, metrics)) {
@@ -127,6 +162,10 @@ static void handleLine() {
     syncClock();
     samples++;
     lastSampleMs = millis();
+    // Fetch µMonitor's themes on the first sample, and again after the host was really gone (it may have
+    // restarted with different themes). Short gaps (e.g. during a picture transfer) don't count.
+    if (samples == 1 || (stale && millis() - lastLiveMs > 30000)) requestThemes();
+    lastLiveMs = millis();
     stale = false;
     ingestSample();
     uint32_t t0 = millis();
@@ -138,7 +177,8 @@ static void handleLine() {
 }
 
 void serviceSerial() {
-    while (readLine()) handleLine();
+    // Stop right after a picture header: the binary payload that follows is read by fetchPicture().
+    while (!picturePending() && readLine()) handleLine();
 }
 
 void setup() {
@@ -151,18 +191,17 @@ void setup() {
 
     loadSettings();
     gfxBegin();
-    sdBegin();
-    applyTheme(settings.themeIdx);  // after the SD card, which may provide the saved theme
+    applyTheme(settings.themeIdx);  // falls back to Dark until µMonitor sends its themes
     touchBegin();
     drawDashboard();
 }
 
 void loop() {
     serviceSerial();
-    if (sdPoll()) {
-        // Card inserted after boot: its themes are now available; re-apply the saved one.
-        applyTheme(settings.themeIdx);
-        if (!menuOpen && !uiBusy) redrawView();
+    if (pictest.pending) {
+        pictest.pending = false;
+        int count;
+        fetchPicture(pictest.folder, pictest.n, 0, 0, pictest.w, pictest.h, count);
     }
     if (!stale && millis() - lastSampleMs > STALE_MS) {
         stale = true;

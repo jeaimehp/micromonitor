@@ -2,8 +2,8 @@
 """Generate the "motivation" pixel-art set: cute characters with encouraging captions.
 
 Each image is drawn on a half-resolution grid and scaled 2x with nearest-neighbour, so pixels stay crisp.
-Writes PNG previews to sdcard_preview/motivation/ (landscape 480x320 and portrait 320x480) and a contact
-sheet sdcard_preview/motivation_sheet.png. tools/sd_convert.py turns the PNGs into .565 files for the SD card.
+Writes content/motivation/mNN_<name>_L.png (480x320) and _P.png (320x480), which µMonitor streams to the
+device, and a contact sheet content/motivation_sheet.png.
 """
 import os
 import random
@@ -12,7 +12,7 @@ import textwrap
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-OUT = os.path.join(ROOT, "sdcard_preview", "motivation")
+OUT = os.path.join(ROOT, "content", "motivation")
 FONT = "/System/Library/Fonts/Supplemental/Silom.ttf"
 
 PALETTE = {
@@ -301,7 +301,7 @@ def main():
         sheet.paste(t, (4 + (k % 5) * 248, 4 + (k // 5) * 168))
     for k, t in enumerate(thumbs_p):
         sheet.paste(t, (4 + k * 124, 4 + 2 * 168))
-    sheet.save(os.path.join(ROOT, "sdcard_preview", "motivation_sheet.png"))
+    sheet.save(os.path.join(ROOT, "content", "motivation_sheet.png"))
     print(f"wrote {len(land)} landscape + {len(port)} portrait cards to {OUT}")
 
 

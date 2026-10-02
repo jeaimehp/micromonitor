@@ -24,11 +24,11 @@ bool builtinThemeNamed(const char *name) {
 }
 
 int themeCount() {
-    return NUM_BUILTIN + sdThemeCount();
+    return NUM_BUILTIN + hostThemeCount();
 }
 
 static const ThemeSpec &themeSpec(int i) {
-    return i < NUM_BUILTIN ? BUILTIN_THEMES[i] : sdTheme(i - NUM_BUILTIN);
+    return i < NUM_BUILTIN ? BUILTIN_THEMES[i] : hostTheme(i - NUM_BUILTIN);
 }
 
 const char *themeName(int i) {
@@ -108,6 +108,17 @@ void Canvas::push(int16_t x, int16_t y) {
     tft.startWrite();
     tft.setAddrWindow(x, y, bufW, bufH);
     SPI.transfer(canvasBuf, NULL, n * 2, NULL);
+    tft.endWrite();
+}
+
+uint8_t *canvasBytes() {
+    return (uint8_t *)canvasBuf;
+}
+
+void pushRaw(int x, int y, int w, int h) {
+    tft.startWrite();
+    tft.setAddrWindow(x, y, w, h);
+    SPI.transfer(canvasBuf, NULL, (size_t)w * h * 2, NULL);
     tft.endWrite();
 }
 

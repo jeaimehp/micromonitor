@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Single source of truth for dashboard themes.
 
-Writes sdcard/themes/*.thm (key=value files the firmware reads from the SD card) and
+Writes content/themes/*.thm (key=value files µMonitor streams to the device) and
 firmware/dashboard/src/builtin_themes.h (the themes compiled into the firmware as a fallback).
 Checks WCAG contrast of text and status colors against each surface.
 
@@ -83,7 +83,7 @@ def main():
     if failed:
         sys.exit(1)
 
-    out = os.path.join(ROOT, "sdcard", "themes")
+    out = os.path.join(ROOT, "content", "themes")
     os.makedirs(out, exist_ok=True)
     for i, t in enumerate(THEMES):
         with open(os.path.join(out, f"{i:02d}_{slug(t['name'])}.thm"), "w") as f:
@@ -101,7 +101,7 @@ def main():
             colors = ", ".join(f"0x{t[k]}" for k in KEYS)
             f.write(f"    {{\"{t['name']}\", LAYOUT_{t['layout'].upper()}, {{{colors}}}}},\n")
         f.write("};\n")
-    print(f"wrote {len(THEMES)} theme files to sdcard/themes and builtin_themes.h ({', '.join(BUILTIN)})")
+    print(f"wrote {len(THEMES)} theme files to content/themes and builtin_themes.h ({', '.join(BUILTIN)})")
 
 
 if __name__ == "__main__":

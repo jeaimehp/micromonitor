@@ -7,5 +7,3 @@ firmware/**/target/
 .DS_Store
 build/
 dist/
-sdcard/**/*.565
-sdcard_preview/motivation/
