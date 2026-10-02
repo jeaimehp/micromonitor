@@ -44,7 +44,7 @@ Each step ends with: test, git commit, update this file.
 | 11 | macOS menu bar app "µMonitor" (user request): rumps + py2app, status icon | DONE (menu UI awaiting user visual check) |
 | 12 | Touch bring-up: detect STMPE610 (SPI, CS D3) vs TSC2007 (I2C 0x48), raw readings, calibration screen | DONE (awaiting user accuracy confirmation) |
 | 13 | Touch menu overlay + persisted settings (EEPROM) + rotation | DONE |
-| 14 | Themes + layouts in firmware (built-in default; layouts Quad/Stacked/Focus/Tiles; mixed photo left/right) | TODO |
+| 14 | Themes + layouts in firmware (built-in default; layouts Quad/Stacked/Focus/Tiles; mixed photo left/right) | DONE (mixed side comes with step 19) |
 | 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | TODO |
 | 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | TODO |
 | 17 | Firmware SD support: list folders, load themes from SD | TODO |
@@ -77,7 +77,8 @@ firmware/touchtest = guided 4-corner calibration (targets inset 30px, rotation 3
 swap=1 (raw y -> screen x), uL=3562 uR=286 (raw y at x=30 / x=449), vT=516 vB=3537 (raw x at y=30 / y=289).
 Use these as the firmware DEFAULT; the menu's "Calibrate touch" item (requested by the user) reruns the guided screen and saves it to EEPROM.
 For rotation 1 (flipped 180), mirror both axes: sx' = 479 - sx, sy' = 319 - sy.
-Step 13 is done. The user confirmed touch accuracy is good. NEXT: step 14 (themes + layouts in firmware).
+Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + layouts. NEXT: step 15 (generate the pixel-art set +
+photo converter into sdcard/). The theme files are already generated in sdcard/themes by tools/make_themes.py.
 µMonitor was restarted after step 13.
 (Earlier notes:) Steps 0-9 are complete.
 Step 10: stale indicator (LIVE / NO HOST DATA / WAITING FOR HOST in the table header) is done and verified by webcam; run.sh, README.md and
@@ -123,6 +124,19 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
 - tools/uitest.py "tap X Y, wait S, snap NAME, ..." --snapdir D: streams real samples and drives the UI. Use it for UI tests
   (stop µMonitor first: `pkill -f "MacOS/µMonitor"`. Restart it with `open "dist/µMonitor.app"`).
 
+## Themes + layouts (step 14)
+- tools/make_themes.py is the SINGLE SOURCE for all 8 themes. It writes sdcard/themes/NN_slug.thm and
+  firmware/dashboard/src/builtin_themes.h (Dark + Light compiled in). It checks WCAG contrast; series pairs were validated with
+  the dataviz validate_palette.js (all pass). Re-run both if colors change. .thm format: name=, layout=quad|stacked|focus|tiles,
+  then surface grid text text2 series1 series2 good critical separator button accent = #rrggbb.
+- Firmware: ThemeSpec (RGB888) -> applyTheme(i) -> `theme` (RGB565). themeCount()/themeName() cover the built-ins now;
+  step 17 appends the SD themes. Menu Theme = next theme AND switch to its suggested layout; Layout cycles independently.
+- Settings v2 adds `focus`. Layouts live in dashboard_view.cpp: Quad (2x2 240x105 + table at y210 with 5 rows), Stacked (4 strips
+  480x58 + table at y232 with 3 rows of 24px), Focus (main 480x150 + 3 mini tiles 160x60 at y150; tap a tile to focus it via
+  dashboardTap), Tiles (2x2 with size-4 numbers + sparklines). HISTORY=240 samples. renderRegion(x,y,w,h,lambda) strips any
+  region to fit the canvas.
+- Free RAM after step 14: about 24.0 KB.
+
 ## Rendering approach (IMPORTANT for performance)
 - Drawing directly with tft.* GFX calls is extremely slow (about 3s for a few lines of text): each pixel or char is a separate SPI call.
 - Instead, draw into `Canvas` (a custom Adafruit_GFX subclass over the shared `canvasBuf`, 240*110 px = 52.8KB), call
@@ -163,6 +177,7 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 14: 8 validated themes (Dark/Light built in), 4 layouts, Focus tile tap. All layouts + Light verified by webcam.
 - Step 13: firmware split into modules; touch menu (rotate, calibrate, close, timeout), EEPROM settings (flip survives reboot),
   serial tap injection + tools/uitest.py. All verified by webcam.
 - Step 12: STMPE610 found; guided calibration measured; taps plotted.

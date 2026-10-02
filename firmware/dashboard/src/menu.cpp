@@ -55,14 +55,12 @@ static void describe(int id, ButtonText &t) {
         t.enabled = false;
         break;
     case B_THEME:
-        t.caption = "theme (coming soon)";
-        strcpy(t.value, theme.name);
-        t.enabled = false;
+        t.caption = "theme";
+        strlcpy(t.value, theme.name, sizeof(t.value));
         break;
     case B_LAYOUT:
-        t.caption = "layout (coming soon)";
-        strcpy(t.value, "Quad");
-        t.enabled = false;
+        t.caption = "layout";
+        strcpy(t.value, LAYOUT_NAMES[settings.layout]);
         break;
     case B_FOLDER:
         t.caption = "album folder (needs SD)";
@@ -157,6 +155,17 @@ void menuTap(int x, int y) {
         saveSettings();
         closeMenu();
         return;
+    case B_THEME:
+        // Next theme; it also brings its suggested layout (Layout can override it afterwards).
+        settings.themeIdx = (settings.themeIdx + 1) % themeCount();
+        applyTheme(settings.themeIdx);
+        settings.layout = theme.layout;
+        saveSettings();
+        break;
+    case B_LAYOUT:
+        settings.layout = (settings.layout + 1) % LAYOUT_COUNT;
+        saveSettings();
+        break;
     case B_ROTATE:
         settings.flip = !settings.flip;
         saveSettings();

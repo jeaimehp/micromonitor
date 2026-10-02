@@ -4,6 +4,7 @@
 #include "Particle.h"
 #include "Adafruit_HX8357.h"
 #include "Adafruit_STMPE610.h"
+#include <functional>
 
 // Adafruit 3.5" TFT FeatherWing on a Xenon: Feather pin 9 -> D4, 10 -> D5 (SD_CS 5 -> D2, touch CS 6 -> D3).
 const int TFT_CS = D4;
@@ -67,8 +68,22 @@ private:
     int16_t bufW = 1, bufH = 1;
 };
 
+enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_COUNT };
+extern const char *const LAYOUT_NAMES[LAYOUT_COUNT];
+
+// Theme as stored (RGB888, in the same order as the .thm keys), and as used for drawing (RGB565).
+enum ThemeColor { TC_SURFACE, TC_GRID, TC_TEXT, TC_TEXT2, TC_SERIES1, TC_SERIES2, TC_GOOD, TC_CRITICAL,
+                  TC_SEPARATOR, TC_BUTTON, TC_ACCENT, TC_COUNT };
+
+struct ThemeSpec {
+    char name[16];
+    uint8_t layout;
+    uint32_t colors[TC_COUNT];
+};
+
 struct Theme {
     char name[16];
+    uint8_t layout;  // the layout this theme suggests
     uint16_t surface, grid, text, text2, series[2], good, critical, separator, button, accent;
 };
 
@@ -77,11 +92,17 @@ extern Canvas canvas;
 extern Theme theme;
 
 void gfxBegin();
+int themeCount();
+const char *themeName(int i);
+void applyTheme(int i);  // also used at boot; out-of-range indexes fall back to theme 0
 void applyRotation();
 void printRight(const char *text, int right, int y);
 void printCentered(const char *text, int cx, int y);
-// Calls draw() once per strip with the canvas origin set to that strip, covering rows y0..y1 of the screen.
-void renderStrips(void (*draw)(), int y0 = 0, int y1 = SCREEN_H, int stripH = 40);
+// Render the screen rectangle (x, y, w, h): draw() uses absolute screen coordinates and is called once per
+// horizontal strip that fits the canvas buffer.
+void renderRegion(int x, int y, int w, int h, std::function<void()> draw);
+// Full-width rows y0..y1 (e.g. a whole-screen menu).
+void renderStrips(std::function<void()> draw, int y0 = 0, int y1 = SCREEN_H);
 
 // ---- Settings, persisted in EEPROM (settings.cpp) ----
 struct Calibration {
@@ -103,6 +124,8 @@ struct Settings {
     uint8_t mixedSide;
     uint8_t albumPortrait;
     Calibration cal;
+    // version 2
+    uint8_t focus;      // metric shown large in the Focus layout (0 cpu, 1 ram, 2 disk, 3 net)
 };
 
 extern Settings settings;
@@ -120,6 +143,7 @@ bool runCalibration();          // false if abandoned (30s without a press)
 void ingestSample();            // add the latest metrics to the graph history
 void drawDashboard();
 void drawDashboardStatus();     // only the LIVE / NO HOST DATA line
+bool dashboardTap(int x, int y); // true if the dashboard handled the tap (e.g. Focus layout tile select)
 
 // ---- Menu (menu.cpp) ----
 extern bool menuOpen;

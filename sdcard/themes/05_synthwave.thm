@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles.
+name=Synthwave
+layout=tiles
+surface=#1a0b2e
+grid=#3b1f5c
+text=#fdf0ff
+text2=#d3a6ff
+series1=#e05a9a
+series2=#5b6ff0
+good=#0ca30c
+critical=#ff4d4d
+separator=#0d0418
+button=#2a1546
+accent=#e05a9a

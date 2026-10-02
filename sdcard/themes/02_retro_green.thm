@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles.
+name=Retro Green
+layout=stacked
+surface=#0a140a
+grid=#1f3a1f
+text=#8dff8d
+text2=#4fc04f
+series1=#22a050
+series2=#4a7fe0
+good=#0ca30c
+critical=#e05555
+separator=#000000
+button=#132613
+accent=#22a050

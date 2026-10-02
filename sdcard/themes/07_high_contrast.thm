@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles.
+name=High Contrast
+layout=tiles
+surface=#000000
+grid=#666666
+text=#ffffff
+text2=#e6e6e6
+series1=#3987e5
+series2=#c98500
+good=#0ca30c
+critical=#ff4040
+separator=#4d4d4d
+button=#1a1a1a
+accent=#ffffff

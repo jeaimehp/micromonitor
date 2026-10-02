@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles.
+name=Ocean
+layout=focus
+surface=#0b1d2a
+grid=#1d3a4f
+text=#e6f4ff
+text2=#9cc3dd
+series1=#2f93c2
+series2=#d07a3a
+good=#0ca30c
+critical=#d03b3b
+separator=#04111a
+button=#12293a
+accent=#2f93c2

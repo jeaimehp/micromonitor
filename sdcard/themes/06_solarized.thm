@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles.
+name=Solarized
+layout=stacked
+surface=#002b36
+grid=#0b4452
+text=#fdf6e3
+text2=#93a1a1
+series1=#268bd2
+series2=#cb4b16
+good=#859900
+critical=#dc322f
+separator=#001f27
+button=#073642
+accent=#268bd2

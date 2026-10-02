@@ -1,7 +1,7 @@
 #include "app.h"
 
 static const uint32_t SETTINGS_MAGIC = 0x584D4F4E;  // "XMON"
-static const uint8_t SETTINGS_VERSION = 1;
+static const uint8_t SETTINGS_VERSION = 2;
 static const int SETTINGS_ADDR = 0;
 
 Settings settings;
@@ -18,8 +18,22 @@ static void defaults() {
 
 void loadSettings() {
     EEPROM.get(SETTINGS_ADDR, settings);
-    if (settings.magic != SETTINGS_MAGIC || settings.version != SETTINGS_VERSION || settings.view >= VIEW_COUNT) {
+    if (settings.magic != SETTINGS_MAGIC || settings.version == 0 || settings.version > SETTINGS_VERSION ||
+        settings.view >= VIEW_COUNT) {
         defaults();
+        saveSettings();
+        return;
+    }
+    // Upgrade older layouts in place, keeping calibration and earlier choices.
+    if (settings.version < 2) {
+        settings.focus = 0;
+        settings.themeIdx = 0;
+        settings.layout = LAYOUT_QUAD;
+    }
+    if (settings.layout >= LAYOUT_COUNT) settings.layout = LAYOUT_QUAD;
+    if (settings.focus > 3) settings.focus = 0;
+    if (settings.version != SETTINGS_VERSION) {
+        settings.version = SETTINGS_VERSION;
         saveSettings();
     }
 }

@@ -128,7 +128,7 @@ void loop() {
     int x, y;
     if (pollTap(x, y)) {
         if (menuOpen) menuTap(x, y);
-        else openMenu();
+        else if (!dashboardTap(x, y)) openMenu();
     }
     menuTick();
 }

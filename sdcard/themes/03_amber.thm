@@ -1,0 +1,14 @@
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles.
+name=Amber
+layout=tiles
+surface=#140c00
+grid=#3a2a10
+text=#ffcf80
+text2=#c8913a
+series1=#c98500
+series2=#3987e5
+good=#0ca30c
+critical=#d03b3b
+separator=#000000
+button=#241806
+accent=#c98500
