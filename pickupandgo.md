@@ -36,7 +36,7 @@ Each step ends with: test, git commit, update this file.
 | 3 | Host collector: metrics as JSON lines every 2s | DONE (done early, while blocked on login) |
 | 4 | Serial link host->device, parse + ack, auto-reconnect | DONE |
 | 5 | Dashboard frame + CPU graph | DONE |
-| 6 | RAM graph | TODO |
+| 6 | RAM graph | DONE |
 | 7 | Disk graph (usage + I/O) | TODO |
 | 8 | Network graph (rx/tx) | TODO |
 | 9 | Top-5 process table | TODO |
@@ -47,7 +47,7 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-5 are complete. Next: step 6 (RAM graph): set panels[1].numSeries=1, push metrics.ram, value text e.g. "18.2/68.7G 48%".
+Steps 0-6 are complete. Next: step 7 (disk panel): 2 series (read=blue, write=orange MB/s, autoscale) + usage % in the value text + a legend.
 Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
 After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
 Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
@@ -86,6 +86,12 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - `.venv/bin/python host/sender.py -v [--count N] [--port P]` collects every 2s and writes JSON lines to the first `/dev/cu.usbmodem*`.
   It prints device replies (`ack N c=.. p=.. draw=..ms`, or `err N`) and reconnects on its own (tested with `particle usb reset`).
 
+## Testing helpers
+- `tools/snap.sh out.jpg`: webcam photo (1000px). For detail, take a full-res photo with
+  `imagesnap -d "HD Pro Webcam C920" -w 2 full.jpg` and crop it with `sips -c 330 800 --cropOffset 560 600` (that crop covers the top panels).
+- `tools/synthetic.py 'r=25*20,r=50*20' [key=val ...]` sends synthetic samples quickly (0.2s apart) to check geometry. Keys follow the protocol below.
+- Real load: `yes` processes for CPU; a touched bytearray for RAM (macOS compresses it, so 10GB shows as about 4GB).
+
 ## Host collector protocol (host/collector.py)
 - Test with `.venv/bin/python host/collector.py 3`, which prints 3 lines (one per 2s; 0 means run forever).
 - JSON keys: c cpu%, r ram%, ru/rt ram used/total GB, d disk used% (/System/Volumes/Data), dr/dw disk MB/s,
@@ -93,6 +99,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 6: RAM graph, value "used/totalG pct%"; scaling verified with synthetic 25/50/75/100 steps.
 - Step 5: panel framework + CPU graph; verified with an 8x `yes` burst (about 50% plateau on 18 cores) by webcam.
 - Step 4: JSON parse (Device OS JSONValue) + ack. Switched to canvas+DMA rendering (2945ms -> 185ms). Reconnect tested.
 - Step 2: test pattern verified by webcam; switched to rotation 3.

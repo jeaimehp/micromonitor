@@ -182,11 +182,12 @@ struct Panel {
 
 Panel panels[4] = {
     {"CPU", 0, 0, 1, 100.0f},
-    {"RAM", PANEL_W, 0, 0, 100.0f},
+    {"RAM", PANEL_W, 0, 1, 100.0f},
     {"DISK", 0, PANEL_H, 0, 0.0f},
     {"NET", PANEL_W, PANEL_H, 0, 0.0f},
 };
 Panel &cpuPanel = panels[0];
+Panel &ramPanel = panels[1];
 
 void pushSample(Panel &p, float a, float b = 0) {
     p.hist[0][p.head] = a;
@@ -280,6 +281,9 @@ void drawTablePlaceholder() {
 void updateDashboard() {
     pushSample(cpuPanel, metrics.cpu);
     snprintf(cpuPanel.value, sizeof(cpuPanel.value), "%.1f%%", metrics.cpu);
+    pushSample(ramPanel, metrics.ram);
+    snprintf(ramPanel.value, sizeof(ramPanel.value), "%.0f/%.0fG %.0f%%", metrics.ramUsed, metrics.ramTotal,
+             metrics.ram);
     for (const Panel &p : panels) drawPanel(p);
 }
 
