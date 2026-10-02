@@ -6,6 +6,7 @@ static SdFat sd;
 static bool sdOk = false;
 static uint32_t lastAttempt = 0;
 static const uint32_t RETRY_MS = 5000;
+static const int SD_MHZ = 4;
 
 const char *const FOLDERS[NUM_FOLDERS] = {"/photos", "/motivation"};
 
@@ -62,10 +63,12 @@ static void loadThemes() {
 
 static bool mount() {
     lastAttempt = millis();
-    sdOk = sd.begin(SD_CS, SD_SCK_MHZ(16));
+    sdOk = sd.begin(SD_CS, SD_SCK_MHZ(SD_MHZ));
     if (sdOk) {
         loadThemes();
         Serial.printlnf("sd ok, %d themes", numSdThemes);
+    } else {
+        Serial.printlnf("sd mount failed err=0x%x data=0x%x", sd.cardErrorCode(), sd.cardErrorData());
     }
     return sdOk;
 }
@@ -125,6 +128,46 @@ bool openPicture(int folder, const char *name, FatFile &f) {
     char path[64];
     snprintf(path, sizeof(path), "%s/%s", FOLDERS[folder], name);
     return f.open(path, O_RDONLY);
+}
+
+void sdList(const char *path) {
+    FatFile dir, f;
+    if (!dir.open(path, O_RDONLY)) {
+        Serial.printlnf("sdls: cannot open %s err=0x%x", path, sd.cardErrorCode());
+        return;
+    }
+    int n = 0;
+    while (f.openNext(&dir, O_RDONLY)) {
+        char name[40];
+        bool ok = f.getName(name, sizeof(name));
+        Serial.printlnf("  [%d] %s%s size=%lu nameok=%d", n++, name, f.isDir() ? "/" : "", (unsigned long)f.fileSize(), ok);
+        f.close();
+    }
+    Serial.printlnf("sdls: %d entries, err=0x%x data=0x%x", n, sd.cardErrorCode(), sd.cardErrorData());
+    dir.close();
+}
+
+// Debug: mount + count directory entries n times, to measure reliability.
+void sdTest(int n) {
+    int okMount = 0, okList = 0;
+    for (int i = 0; i < n; i++) {
+        bool m = sd.begin(SD_CS, SD_SCK_MHZ(SD_MHZ));
+        int entries = 0;
+        if (m) {
+            okMount++;
+            FatFile dir, f;
+            if (dir.open("/motivation", O_RDONLY)) {
+                while (f.openNext(&dir, O_RDONLY)) {
+                    entries++;
+                    f.close();
+                }
+                dir.close();
+            }
+            if (entries >= 18) okList++;
+        }
+        Serial.printlnf("sdtest %d mount=%d entries=%d err=0x%x", i, m, entries, sd.cardErrorCode());
+    }
+    Serial.printlnf("sdtest done: mounted %d/%d, full listing %d/%d", okMount, n, okList, n);
 }
 
 void sdInfo() {

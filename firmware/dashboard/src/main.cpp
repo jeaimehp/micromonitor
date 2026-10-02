@@ -106,6 +106,14 @@ static void handleLine() {
         injectTap(tx, ty);
         return;
     }
+    if (!strcmp(lineBuf, "sdtest")) {
+        sdTest(10);
+        return;
+    }
+    if (!strncmp(lineBuf, "sdls ", 5)) {
+        sdList(lineBuf + 5);
+        return;
+    }
     if (!strcmp(lineBuf, "sdinfo")) {
         sdInfo();
         return;

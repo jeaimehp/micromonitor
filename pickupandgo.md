@@ -85,26 +85,13 @@ Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + l
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
 SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). The ghost card was removed at the user's request (9 cards now, m01-m09). The SD card still holds the OLD 10-card set (it has a ghost):
 re-copy /motivation (delete the old m*.565 first) the next time the card is in the Mac.
-Step 17 IN PROGRESS: sdstore.cpp (SdFat 1.0.16, CS D2, 16MHz, retries every 5s) merges /themes into the theme list and counts pictures.
-Serial command "sdinfo" prints status. As of the last check the device reports "sd missing", so the user was asked to confirm the card is
-seated in the FeatherWing slot. If the card IS seated and it still fails, try a lower clock (SD_SCK_MHZ(4)) and check SD_CS=D2.
-(old) NEXT: step 16
-(SD card: ASK the user to insert it; also ask whether they have a photo folder for /photos; the only sample photo so far is the
-macOS Sonoma wallpaper, since the wallpaper thumbnails are only 214x130).
-µMonitor was restarted after step 13.
-(Earlier notes:) Steps 0-9 are complete.
-Step 10: stale indicator (LIVE / NO HOST DATA / WAITING FOR HOST in the table header) is done and verified by webcam; run.sh, README.md and
-tools/install-launchd.sh (NOT installed; it changes login items, so ask the user) are written. 12-min soak PASSED: 360/360 acks, 0 errors,
-free=28328 constant, draw 213-223ms.
-Step 11 (user asked mid-step-10): turn run.sh into a menu bar status-icon app, named "µMonitor" (MICRO SIGN U+00B5, per the user;
-bundle id / LaunchAgent label com.xenon-feather-tft.micromonitor). host/menubar.py (rumps), host/sender.py refactored
-into a `Streamer` class (thread-safe stop), template icon from tools/make_icon.py, setup.py (py2app, LSUIElement).
-`dist/µMonitor.app` builds (29MB) and runs: it holds the port and the TFT shows LIVE with all panels (webcam-verified).
-The port is opened with exclusive=True, so a second sender gets "Could not exclusively lock port" and retries (verified); the menu then shows
-"Xenon port busy". The menu bar can't be screenshotted (no Screen Recording permission for the terminal), so the user must
-check the icon and menu visually. Rebuild: `rm -rf build dist && .venv/bin/python setup.py py2app`.
-"Start at Login" writes ~/Library/LaunchAgents/com.xenon-feather-tft.micromonitor.plist (RunAtLoad, no KeepAlive, so Quit stays quit).
-It points at the app's location at the time, so re-toggle it if the app moves (e.g. to /Applications).
+Step 17 IN PROGRESS, BLOCKED on SD reliability. sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
+mount+list cycles), but the card mounts only about 20-50% of the time and listings stop early, at EVERY clock (1/4/16 MHz), with or
+without touch, with or without DMA. firmware/sdprobe (SD-only, TFT/touch CS held high, byte-by-byte SPI variant of SdFat) reproduces it
+-> most likely PHYSICAL (card not fully seated, or this ADATA 16GB card is poor in SPI mode). Asked the user to reseat the card and,
+if it still fails, try another microSD (SanDisk/Samsung SDHC <= 32GB). SdFat is vendored at firmware/dashboard/lib/SdFat with a patch:
+receive() sends an explicit 0xFF TX buffer (correct for SD regardless). To test: stop µMonitor, flash firmware/sdprobe, send "t 4" over serial,
+and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10 before continuing.
 
 ## Device / firmware facts
 - The Xenon now runs Device OS 1.5.2 (installed with `particle update --target 1.5.2`). Cloud compile for xenon@1.5.2 works.

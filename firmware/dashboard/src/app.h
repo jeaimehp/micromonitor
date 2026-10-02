@@ -157,6 +157,8 @@ int pictureCount(int folder, bool portrait);
 bool pictureName(int folder, int n, bool portrait, char *out, size_t len);
 bool openPicture(int folder, const char *name, FatFile &f);
 void sdInfo();                      // serial "sdinfo" command
+void sdList(const char *path);
+void sdTest(int n);      // serial "sdls PATH" command
 
 // ---- Dashboard view (dashboard_view.cpp) ----
 void ingestSample();            // add the latest metrics to the graph history
