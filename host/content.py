@@ -75,8 +75,14 @@ def set_photos_dir(path):
 
 
 def _images(folder):
-    return sorted(p for p in glob.glob(os.path.join(folder, "*"))
-                  if p.lower().endswith(IMAGE_EXTS) and not os.path.basename(p).startswith("."))
+    """Image files in a folder, sorted. Skips anything starting with "." (macOS AppleDouble "._name" files,
+    .DS_Store, etc.) and anything that is not a regular file."""
+    try:
+        entries = list(os.scandir(folder))
+    except OSError:
+        return []
+    return sorted(e.path for e in entries
+                  if not e.name.startswith(".") and e.name.lower().endswith(IMAGE_EXTS) and e.is_file())
 
 
 def picture_list(folder, portrait):
@@ -143,12 +149,18 @@ def render_picture(folder, n, w, h):
     files = picture_list(folder, portrait=h > w)
     if not files:
         return 0, b""
-    path = files[n % len(files)]
-    img = ImageOps.exif_transpose(Image.open(path))
     # Pixel art stays crisp with nearest-neighbour; photos use a high-quality filter.
     method = Image.NEAREST if folder == 1 else Image.LANCZOS
-    img = ImageOps.fit(img, (w, h), method=method)
-    return len(files), rle_encode(to_rgb565be(img))
+    # A file that can't be decoded (damaged, or not really an image) is skipped in favour of the next one.
+    for k in range(len(files)):
+        path = files[(n + k) % len(files)]
+        try:
+            img = ImageOps.exif_transpose(Image.open(path))
+            img = ImageOps.fit(img, (w, h), method=method)
+        except Exception:
+            continue
+        return len(files), rle_encode(to_rgb565be(img))
+    return 0, b""
 
 
 def theme_lines():

@@ -28,20 +28,55 @@ its own touch menu.
 
 ![Motivation cards](content/motivation_sheet.png)
 
-## Hardware
+## Parts list
 
-| Part | Notes |
-|---|---|
-| [Particle Xenon](https://docs.particle.io/reference/discontinued/hardware/xenon-datasheet/) | nRF52840 Feather board (discontinued; last Device OS is **1.5.2**) |
-| [Adafruit 3.5" 480x320 TFT FeatherWing](https://www.adafruit.com/product/3651) | HX8357D display + **STMPE610** resistive touch (V1 of the wing). Plug the Xenon into the headers on the back. |
-| USB cable | Data + power between the Xenon and the Mac |
-| A Mac | Built and tested on Apple Silicon (M5 Pro), macOS 26 |
+| # | Part | Qty | Notes |
+|---|---|---|---|
+| 1 | [Particle Xenon](https://docs.particle.io/reference/discontinued/hardware/xenon-datasheet/) | 1 | Feather-format nRF52840 board with male headers (discontinued; check eBay or old stock) |
+| 2 | [Adafruit 3.5" 480x320 TFT FeatherWing](https://www.adafruit.com/product/3651) | 1 | HX8357D display, **STMPE610** resistive touch (the original V1 wing), microSD slot (not used) |
+| 3 | Micro-USB cable | 1 | Must carry **data**, not just power: it is the link to the Mac |
+| 4 | 3D-printed case (optional) | 1 | [Adafruit TFT 3.5" FeatherWing Housing / Enclosure (480x320)](https://www.thingiverse.com/thing:2836944) by Empor on Thingiverse; any PLA works |
+| 5 | A Mac | 1 | Runs the µMonitor app; built and tested on Apple Silicon (M5 Pro), macOS 26 |
+
+**Assembly:** plug the Xenon into the female headers on the back of the FeatherWing (the 16- and 12-pin headers only
+fit one way), then put the pair in the case. No soldering or wiring beyond the headers.
+
+Pin mapping (Feather pin → Xenon pin), handled in the firmware: TFT_CS 9 → **D4**, TFT_DC 10 → **D5**,
+touch CS 6 → **D3**, SD CS 5 → D2 (kept high). SPI uses the standard SCK/MOSI/MISO pins.
 
 No SD card is needed: pictures and themes stream from the Mac. (The wing's SD slot turned out to be unreliable in SPI
 mode with this setup, so everything goes over USB instead.)
 
-Pin mapping (Feather pin → Xenon pin): TFT_CS 9 → **D4**, TFT_DC 10 → **D5**, touch CS 6 → **D3**, SD CS 5 → D2
-(kept high). SPI uses the standard SCK/MOSI/MISO pins.
+### Particle Xenon specs
+
+From the [Particle Xenon datasheet](https://docs.particle.io/reference/discontinued/hardware/xenon-datasheet/):
+
+| | |
+|---|---|
+| SoC | Nordic Semiconductor **nRF52840** |
+| CPU | ARM **Cortex-M4F**, 32-bit, **64 MHz** |
+| Memory | **1 MB** flash, **256 KB** RAM, plus **4 MB** on-board SPI flash |
+| Radios | Bluetooth 5 (2 Mbps / 1 Mbps / 500 kbps / 125 kbps, up to +8 dBm), IEEE 802.15.4 (Particle Mesh, now retired), NFC tag |
+| Antenna | On-board PCB antenna, plus a U.FL connector for an external one |
+| I/O | 20 mixed-signal GPIO (6 analog, 8 PWM), UART, I2C, SPI |
+| USB | Micro-USB 2.0 full speed (12 Mbps) |
+| Debug | JTAG (SWD) connector |
+| Power | Integrated Li-Po charger and battery connector; Li-Po 3.3–4.4 V, supply 3.0–3.6 V |
+| Indicators / buttons | RGB status LED, RESET and MODE buttons |
+| Form factor | Adafruit Feather compatible |
+| Operating temperature | −20 to +60 °C |
+| Status | Discontinued (last hardware revision v002, January 2020). The last Device OS that supports it is **1.5.2**, which this project uses. |
+
+How µMonitor uses it: the 32 MHz SPI bus drives the display with DMA, USB serial carries the data from the Mac, and
+the EEPROM emulation keeps settings and the touch calibration. About 22 KB of RAM is left free.
+
+### Display specs (Adafruit 3.5" TFT FeatherWing)
+
+| | |
+|---|---|
+| Panel | 3.5" TFT, **480 x 320**, 16-bit color, HX8357D controller (SPI) |
+| Touch | 4-wire resistive, **STMPE610** controller (SPI) |
+| Extras | microSD slot (not used here), reset button |
 
 ## How it works
 
@@ -128,6 +163,10 @@ because the login item remembers where the app was.
   When a timer finishes, the display flashes and the Mac shows a notification. While a timer runs, the menu bar title
   shows the countdown.
 - **Streaming** on/off, CPU % in the menu bar, Start at Login, Quit.
+
+### Pictures folder notes
+Hidden files are ignored (anything starting with `.`, e.g. the `._name` and `.DS_Store` files macOS creates), as are
+subfolders. A file that can't be decoded is skipped.
 
 ### Without the app
 `./run.sh -v` streams from the terminal instead (no pictures menu, but albums still work). Run either µMonitor or

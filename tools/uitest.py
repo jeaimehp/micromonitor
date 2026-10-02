@@ -4,7 +4,7 @@
 Usage: uitest.py <script> [--snapdir DIR]
 script: comma-separated steps: "tap X Y", "send TEXT" (any line, e.g. "send pictest 1 0 480 320"),
 "timer SECONDS", "stopwatch" (start/stop), "pause" (timer pause/resume), "cancel" (timer/stopwatch off),
-"wait SECONDS", "snap NAME" (webcam photo to SNAPDIR/NAME.jpg).
+"wait SECONDS", "snap NAME" (webcam photo to SNAPDIR/NAME.jpg), "snapfull NAME" (full resolution).
 Prints every line the device sends (acks, taps, menu events) and serves its theme/picture requests like µMonitor.
 """
 import argparse
@@ -98,5 +98,8 @@ for step in [s.strip() for s in args.script.split(",") if s.strip()]:
     elif kind == "snap":
         out = os.path.join(args.snapdir, rest[0] + ".jpg")
         subprocess.run([os.path.join(os.path.dirname(__file__), "snap.sh"), out], capture_output=True)
+    elif kind == "snapfull":  # full 1920x1080 webcam frame (for README photos)
+        out = os.path.join(args.snapdir, rest[0] + ".jpg")
+        subprocess.run(["imagesnap", "-d", "HD Pro Webcam C920", "-w", "2", out], capture_output=True)
 done.set()
 time.sleep(0.3)

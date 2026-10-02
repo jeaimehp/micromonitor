@@ -35,6 +35,8 @@ bool parseMetrics(const char *line, Metrics &m) {
     if (!root.isObject()) {
         return false;
     }
+    // µMonitor only includes "tm" while a timer/stopwatch is active, so a sample without it means "none".
+    bool sawTimer = false;
     JSONObjectIterator it(root);
     while (it.next()) {
         JSONString key = it.name();
@@ -60,6 +62,7 @@ bool parseMetrics(const char *line, Metrics &m) {
             if (a.next()) secs = a.value().toDouble();
             if (a.next()) running = a.value().toBool();
             setTimerState(mode, secs, running);
+            sawTimer = true;
         }
         else if (key == "tz") m.tzOffset = v.toInt();
         else if (key == "p" && v.isArray()) {
@@ -76,6 +79,7 @@ bool parseMetrics(const char *line, Metrics &m) {
             }
         }
     }
+    if (!sawTimer && timerMode() != TM_NONE) setTimerState(TM_NONE, 0, false);
     return true;
 }
 

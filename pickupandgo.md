@@ -148,6 +148,10 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   arrive, and on "cmd state" (sent by the host on connect). Timer: samples carry "tm":[mode 1=timer|2=stopwatch, seconds, running];
   the device ticks locally and shows it in the dashboard clock tile (drawTimerTile), the mixed compact clock, and the album badge;
   when done it flashes critical red and shows TIME'S UP. The loop redraws only that area each second (drawTimerTick).
+- FIX: the device clears its timer when a sample has no "tm" (the host omits it when idle). Before this, Cancel in µMonitor left the old
+  timer counting on the display.
+- Pictures: content._images uses os.scandir and skips names starting with "." (macOS ._ AppleDouble files, .DS_Store) and non-files;
+  render_picture skips undecodable files (user request).
 - Tap-to-dismiss (user request): when timerDone(), a tap on the timer area (dashboard clock tile, mixed compact clock, album badge
   +20px margin; timerAreaHit) calls dismissTimer(): back to the clock + "evt timer_dismiss" -> the host Streamer cancels its timer.
   The device ignores done-timer states for 3s after a dismiss (samples already in flight).
@@ -268,6 +272,11 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Public GitHub repo github.com/jeaimehp/micromonitor (MIT, Je'aime Powell). History was rewritten before the first push: the Apple Sonoma
+  wallpaper sample was removed (not redistributable) and the device serial redacted; a local tag `pre-public-backup` holds the old
+  history (NOT pushed). The README has a parts list (incl. the Thingiverse case thing:2836944 by Empor), Xenon/display specs, full
+  install steps, and photos in docs/images (webcam, cropped; motivation cards only, no personal photos).
+- Timer clear fix + dot-file filtering.
 - Tap TIME'S UP to dismiss (device + host), verified in mixed and album views.
 - Step 19b: µMonitor mirrors the device menu (commands + state sync), Pictures submenu, timer/stopwatch on the display; app rebuilt.
 - Step 19: mixed view (photo left/right, compact panels, top-2 strip + clock) verified by webcam.
