@@ -38,7 +38,7 @@ Each step ends with: test, git commit, update this file.
 | 5 | Dashboard frame + CPU graph | DONE |
 | 6 | RAM graph | DONE |
 | 7 | Disk graph (usage + I/O) | DONE |
-| 8 | Network graph (rx/tx) | TODO |
+| 8 | Network graph (rx/tx) | DONE |
 | 9 | Top-5 process table | TODO |
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | TODO |
 
@@ -47,7 +47,7 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-7 are complete. Next: step 8 (net panel): make panels[3] like DISK: numSeries 2, labels {"rx","tx"}, unit "KB/s"; push nr/nt.
+Steps 0-8 are complete. Next: step 9 (top-5 process table in y 210..320, replacing drawTablePlaceholder).
 Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
 After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
 Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
@@ -91,6 +91,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 ## Testing helpers
 - `tools/snap.sh out.jpg`: webcam photo (1000px). For detail, take a full-res photo with
   `imagesnap -d "HD Pro Webcam C920" -w 2 full.jpg` and crop it with `sips -c 330 800 --cropOffset 560 600` (that crop covers the top panels).
+  sips crop args: `-c <height> <width> --cropOffset <y> <x>`. Panels in the 1920x1080 photo: DISK about y640 x600, NET about y640 x900.
 - `tools/synthetic.py 'r=25*20,r=50*20' [key=val ...]` sends synthetic samples quickly (0.2s apart) to check geometry. Keys follow the protocol below.
 - Webcam autofocus drifts; if a photo is blurry, take another (-w 3).
 - Real load: `yes` processes for CPU; a touched bytearray for RAM (macOS compresses it, so 10GB shows as about 4GB).
@@ -102,6 +103,8 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 8: net panel (rx/tx KB/s, headline = total in KB/s or MB/s). Verified with a 1GB download from proof.ovh.net (about 38 MB/s)
+  and an upload to speed.cloudflare.com/__up (about 23 MB/s). Cloudflare __down refuses curl, so don't use it.
 - Step 7: disk panel (rd/wr MB/s + "N% used"). Real 4GB F_NOCACHE write/read showed spikes (about 2.1 GB/s); worst-case legend width checked with synthetic data.
 - Step 6: RAM graph, value "used/totalG pct%"; scaling verified with synthetic 25/50/75/100 steps.
 - Step 5: panel framework + CPU graph; verified with an 8x `yes` burst (about 50% plateau on 18 cores) by webcam.

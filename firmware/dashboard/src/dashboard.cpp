@@ -186,11 +186,12 @@ Panel panels[4] = {
     {"CPU", 0, 0, 1, 100.0f},
     {"RAM", PANEL_W, 0, 1, 100.0f},
     {"DISK", 0, PANEL_H, 2, 0.0f, {"rd", "wr"}, "MB/s"},
-    {"NET", PANEL_W, PANEL_H, 0, 0.0f},
+    {"NET", PANEL_W, PANEL_H, 2, 0.0f, {"rx", "tx"}, "KB/s"},
 };
 Panel &cpuPanel = panels[0];
 Panel &ramPanel = panels[1];
 Panel &diskPanel = panels[2];
+Panel &netPanel = panels[3];
 
 void pushSample(Panel &p, float a, float b = 0) {
     p.hist[0][p.head] = a;
@@ -324,6 +325,10 @@ void updateDashboard() {
              metrics.ram);
     pushSample(diskPanel, metrics.diskRead, metrics.diskWrite);
     snprintf(diskPanel.value, sizeof(diskPanel.value), "%.0f%% used", metrics.disk);
+    pushSample(netPanel, metrics.netRx, metrics.netTx);
+    float total = metrics.netRx + metrics.netTx;
+    if (total < 1000) snprintf(netPanel.value, sizeof(netPanel.value), "%.0f KB/s", total);
+    else snprintf(netPanel.value, sizeof(netPanel.value), "%.1f MB/s", total / 1000);
     for (const Panel &p : panels) drawPanel(p);
 }
 
