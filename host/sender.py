@@ -6,6 +6,7 @@ Usage: sender.py [--port /dev/cu.usbmodemXXXX] [--count N] [--verbose]
 import argparse
 import glob
 import sys
+import threading
 import time
 
 import serial
@@ -22,24 +23,94 @@ def log(msg):
     print(time.strftime("%H:%M:%S"), msg, flush=True)
 
 
-def open_port(port_arg):
-    port = port_arg or find_port()
-    if not port:
-        return None
-    try:
-        return serial.Serial(port, 115200, timeout=0, write_timeout=1)
-    except serial.SerialException as e:
-        log(f"open {port} failed: {e}")
-        return None
+class Streamer:
+    """Samples every INTERVAL and writes each sample to the device. Safe to run in a thread; call stop() to end."""
 
+    def __init__(self, port=None, verbose=False, on_status=None):
+        self.port_arg = port
+        self.verbose = verbose
+        self.on_status = on_status or (lambda streamer: None)
+        self._stop = threading.Event()
+        self.ser = None
+        self.connected_port = None
+        self.open_error = None  # last failure to open an existing port (e.g. held by another sender)
+        self.sent = 0
+        self.last_ack = ""
+        self.last_sample = None
 
-def drain(ser, verbose):
-    """Print whatever the device has sent back (acks/errors)."""
-    data = ser.read(4096)
-    if data and verbose:
+    def stop(self):
+        self._stop.set()
+
+    @property
+    def stopped(self):
+        return self._stop.is_set()
+
+    def _open(self):
+        port = self.port_arg or find_port()
+        if not port:
+            self.open_error = None
+            return
+        try:
+            self.ser = serial.Serial(port, 115200, timeout=0, write_timeout=1, exclusive=True)
+            self.connected_port = port
+            self.open_error = None
+            log(f"connected {port}")
+        except serial.SerialException as e:
+            self.open_error = str(e)
+            log(f"open {port} failed: {e}")
+
+    def _close(self):
+        if self.ser:
+            try:
+                self.ser.close()
+            except Exception:
+                pass
+        self.ser = None
+        self.connected_port = None
+
+    def _drain(self):
+        """Read whatever the device has sent back (acks/errors)."""
+        data = self.ser.read(4096)
         for line in data.decode(errors="replace").splitlines():
-            if line.strip():
-                log(f"< {line.strip()}")
+            line = line.strip()
+            if line:
+                self.last_ack = line
+                if self.verbose:
+                    log(f"< {line}")
+
+    def run(self, count=0):
+        collector = Collector()
+        next_t = time.monotonic() + INTERVAL
+        while not self.stopped and (not count or self.sent < count):
+            if self._stop.wait(max(0.0, next_t - time.monotonic())):
+                break
+            next_t += INTERVAL
+            self.last_sample = collector.sample()
+            line = encode(self.last_sample)
+            if self.ser is None:
+                self._open()
+                if self.ser is None:
+                    log("device not found, retrying")
+                    self.on_status(self)
+                    continue
+            try:
+                self._drain()
+                self.ser.write(line.encode() + b"\n")
+                self.sent += 1
+                if self.verbose:
+                    log(f"> {line}")
+            except (serial.SerialException, OSError) as e:
+                log(f"serial error: {e}; reconnecting")
+                self._close()
+            self.on_status(self)
+        if self.ser:
+            time.sleep(0.5)
+            try:
+                self._drain()
+            except (serial.SerialException, OSError):
+                pass
+        self._close()
+        self.on_status(self)
 
 
 def main():
@@ -48,37 +119,7 @@ def main():
     ap.add_argument("--count", type=int, default=0, help="stop after N samples (0 = forever)")
     ap.add_argument("--verbose", "-v", action="store_true")
     args = ap.parse_args()
-
-    collector = Collector()
-    ser = None
-    sent = 0
-    next_t = time.monotonic() + INTERVAL
-    while not args.count or sent < args.count:
-        time.sleep(max(0.0, next_t - time.monotonic()))
-        next_t += INTERVAL
-        line = encode(collector.sample())
-        if ser is None:
-            ser = open_port(args.port)
-            if ser is None:
-                log("device not found, retrying")
-                continue
-            log(f"connected {ser.port}")
-        try:
-            drain(ser, args.verbose)
-            ser.write(line.encode() + b"\n")
-            sent += 1
-            if args.verbose:
-                log(f"> {line}")
-        except (serial.SerialException, OSError) as e:
-            log(f"serial error: {e}; reconnecting")
-            try:
-                ser.close()
-            except Exception:
-                pass
-            ser = None
-    if ser:
-        time.sleep(0.5)
-        drain(ser, args.verbose)
+    Streamer(args.port, args.verbose).run(args.count)
 
 
 if __name__ == "__main__":

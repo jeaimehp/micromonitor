@@ -5,3 +5,5 @@ firmware/**/target/
 *.bin
 !firmware/prebuilt/*.bin
 .DS_Store
+build/
+dist/

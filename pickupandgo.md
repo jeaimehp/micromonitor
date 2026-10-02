@@ -41,7 +41,7 @@ Each step ends with: test, git commit, update this file.
 | 8 | Network graph (rx/tx) | DONE |
 | 9 | Top-5 process table | DONE |
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | DONE |
-| 11 | macOS menu bar app (user request): rumps + py2app, status icon | IN PROGRESS (built, untested) |
+| 11 | macOS menu bar app "µMonitor" (user request): rumps + py2app, status icon | DONE (menu UI awaiting user visual check) |
 
 ## Layout (480x320)
 - A 2x2 grid of graph panels at the top, each about 240x105: CPU, RAM, Disk, Net
@@ -55,11 +55,12 @@ free=28328 constant, draw 213-223ms.
 Step 11 (user asked mid-step-10): turn run.sh into a menu bar status-icon app, named "µMonitor" (MICRO SIGN U+00B5, per the user;
 bundle id / LaunchAgent label com.xenon-feather-tft.micromonitor). host/menubar.py (rumps), host/sender.py refactored
 into a `Streamer` class (thread-safe stop), template icon from tools/make_icon.py, setup.py (py2app, LSUIElement).
-`dist/µMonitor.app` builds (29MB). TODO: launch it AFTER the soak ends (only ONE process may hold the serial port),
-check the menu via screenshot, verify the dashboard is LIVE, test pause/resume and the login toggle, then commit.
-Visual verification: `tools/snap.sh <scratch>/x.jpg`, then view the image. The webcam permission is granted, and the C920 faces the TFT.
-After flashing, wait a few seconds for the reboot and redraw before taking a photo (otherwise it can catch a partial redraw).
-Do NOT read ~/.particle config files (the permission policy blocks reading credentials). The user is logged in to the Particle CLI.
+`dist/µMonitor.app` builds (29MB) and runs: it holds the port and the TFT shows LIVE with all panels (webcam-verified).
+The port is opened with exclusive=True, so a second sender gets "Could not exclusively lock port" and retries (verified); the menu then shows
+"Xenon port busy". The menu bar can't be screenshotted (no Screen Recording permission for the terminal), so the user must
+check the icon and menu visually. Rebuild: `rm -rf build dist && .venv/bin/python setup.py py2app`.
+"Start at Login" writes ~/Library/LaunchAgents/com.xenon-feather-tft.micromonitor.plist (RunAtLoad, no KeepAlive, so Quit stays quit).
+It points at the app's location at the time, so re-toggle it if the app moves (e.g. to /Applications).
 
 ## Device / firmware facts
 - The Xenon now runs Device OS 1.5.2 (installed with `particle update --target 1.5.2`). Cloud compile for xenon@1.5.2 works.
@@ -113,6 +114,7 @@ Do NOT read ~/.particle config files (the permission policy blocks reading crede
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 11: µMonitor menu bar app (host/menubar.py, setup.py, tools/make_icon.py); sender.py refactored into a Streamer class.
 - Step 10: stale indicator, run.sh, README, launchd script, ack now includes free=. 12-minute soak passed.
 - Step 9: process table; verified with 2x `yes` (both 100.0 at top, matching the sender's JSON). Host now ASCII-sanitizes names.
 - Step 8: net panel (rx/tx KB/s, headline = total in KB/s or MB/s). Verified with a 1GB download from proof.ovh.net (about 38 MB/s)
