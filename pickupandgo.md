@@ -136,6 +136,16 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   region to fit the canvas.
 - Free RAM after step 14: about 24.0 KB.
 
+## User-requested UI changes (after step 16)
+- Clock TILE: bottom-right 160px of the table band in every layout (time in size 4 + AM/PM, date below); the table is now 320px wide
+  (names cut to 11 chars, CPU bar 56px). drawClock() redraws it every minute via drawDashboardStatus().
+- Rounded corners everywhere: card(x,y,w,h) = 2px separator gap + fillRoundRect(r=8) surface; graphs get a rounded frame (r=5) at
+  plot rect +3px; table CPU bars are rounded.
+- GPU: the collector adds "g" (Apple GPU "Device Utilization %" from `ioreg -r -d 1 -w 0 -c IOAccelerator`, about 10ms, no root).
+  The CPU panel became "CPU/GPU": 2 series (cpu blue, gpu orange) on the same 0-100 scale; headline "7% / 0%"; the Tiles sub line shows GPU.
+  (Offered the user a separate GPU panel instead; they haven't asked for it.)
+- Free RAM is now about 21.4KB.
+
 ## Date/time (step 15b)
 - The collector adds "t" (unix time) and "tz" (tm_gmtoff seconds). Firmware syncClock() sets Time.zone + Time.setTime if it is off by >2s.
   formatClock() gives "Fri Oct 2  4:21 PM" ("" until synced). The loop redraws the table header every minute, even when stale.

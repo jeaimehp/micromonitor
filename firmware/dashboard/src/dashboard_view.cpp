@@ -18,7 +18,7 @@ struct Panel {
 };
 
 static Panel panels[4] = {
-    {"CPU", 1, 100.0f},
+    {"CPU/GPU", 2, 100.0f, {"cpu", "gpu"}, "%"},
     {"RAM", 1, 100.0f},
     {"DISK", 2, 0.0f, {"rd", "wr"}, "MB/s"},
     {"NET", 2, 0.0f, {"rx", "tx"}, "KB/s"},
@@ -66,10 +66,11 @@ static void formatRate(char *buf, size_t len, float kbps) {
 }
 
 void ingestSample() {
-    pushSample(cpuPanel, metrics.cpu);
-    snprintf(cpuPanel.value, sizeof(cpuPanel.value), "%.1f%%", metrics.cpu);
+    pushSample(cpuPanel, metrics.cpu, metrics.gpu);
+    snprintf(cpuPanel.value, sizeof(cpuPanel.value), "%.0f%% / %.0f%%", metrics.cpu, metrics.gpu);
     snprintf(cpuPanel.big, sizeof(cpuPanel.big), "%.0f%%", metrics.cpu);
-    snprintf(cpuPanel.sub, sizeof(cpuPanel.sub), "top: %s", metrics.numProcs ? metrics.procs[0].name : "-");
+    snprintf(cpuPanel.sub, sizeof(cpuPanel.sub), "GPU %.0f%%  top: %.12s", metrics.gpu,
+             metrics.numProcs ? metrics.procs[0].name : "-");
 
     pushSample(ramPanel, metrics.ram);
     snprintf(ramPanel.value, sizeof(ramPanel.value), "%.0f/%.0fG %.0f%%", metrics.ramUsed, metrics.ramTotal,
@@ -95,14 +96,14 @@ void ingestSample() {
 // Graph of the newest n samples in (x, y, w, h), newest at the right edge.
 static void drawGraph(const Panel &p, int x, int y, int w, int h, int n, bool grid) {
     float maxV = scaleMax(p, n);
+    // Rounded frame around the plot area, with recessive quarter grid lines inside it.
+    canvas.drawRoundRect(x - 3, y - 3, w + 6, h + 6, 5, theme.grid);
     if (grid) {
         for (int g = 1; g <= 3; g++) {
             int gy = y + h * g / 4;
             for (int gx = x; gx < x + w; gx += 4) canvas.drawPixel(gx, gy, theme.grid);
         }
-        canvas.drawFastHLine(x, y, w, theme.grid);
     }
-    canvas.drawFastHLine(x, y + h, w, theme.grid);
     bool thick = h >= 30;
     int shown = min(n, p.count);
     for (int s = 0; s < p.numSeries; s++) {
@@ -143,11 +144,17 @@ static void scaleText(const Panel &p, int n, char *buf, size_t len) {
     else snprintf(buf, len, "max %g %s", scaleMax(p, n), p.unit);
 }
 
+// Rounded card filling (x, y, w, h): a 2px gap in the separator color on every side, then the surface with
+// rounded corners. Strip renders draw their clipped slice of the same card, so tall cards stay seamless.
+static const int CARD_RADIUS = 8;
+
+static void card(int x, int y, int w, int h) {
+    canvas.fillRect(x, y, w, h, theme.separator);
+    canvas.fillRoundRect(x + 2, y + 2, w - 4, h - 4, CARD_RADIUS, theme.surface);
+}
+
 static void panelBackground(int x, int y, int w, int h) {
-    canvas.fillRect(x, y, w, h, theme.surface);
-    // 2px separators on the right and bottom edges keep the panels visually apart.
-    canvas.fillRect(x + w - 2, y, 2, h, theme.separator);
-    canvas.fillRect(x, y + h - 2, w, 2, theme.separator);
+    card(x, y, w, h);
 }
 
 // Standard panel: title + headline value, legend row, graph (Quad panels and the Focus main panel).
@@ -165,7 +172,7 @@ static void drawStandardPanel(const Panel &p, int x, int y, int w, int h, int n)
     canvas.setTextSize(1);
     canvas.setTextColor(theme.text2);
     printRight(buf, x + w - 8, y + 25);
-    drawGraph(p, x + 8, y + 36, w - 16, h - 43, n, true);
+    drawGraph(p, x + 10, y + 38, w - 20, h - 47, n, true);
 }
 
 // Stacked strip: label column on the left, long graph on the right.
@@ -192,14 +199,14 @@ static void drawStrip(const Panel &p, int x, int y, int w, int h) {
         }
     }
     const int gx = x + 120, gw = w - 128;
-    drawGraph(p, gx, y + 4, gw, h - 10, HISTORY, true);
+    drawGraph(p, gx, y + 7, gw, h - 15, HISTORY, true);
     char buf[24];
     scaleText(p, HISTORY, buf, sizeof(buf));
     if (buf[0]) {
         int bw = strlen(buf) * 6 + 4;
-        canvas.fillRect(gx + 2, y + 5, bw, 10, theme.surface);
+        canvas.fillRect(gx + 3, y + 8, bw, 10, theme.surface);
         canvas.setTextColor(theme.text2);
-        canvas.setCursor(gx + 4, y + 6);
+        canvas.setCursor(gx + 5, y + 9);
         canvas.print(buf);
     }
 }
@@ -219,7 +226,7 @@ static void drawTile(const Panel &p, int x, int y, int w, int h) {
     canvas.setTextColor(theme.text2);
     canvas.setCursor(x + 8, y + 63);
     canvas.print(p.sub);
-    drawGraph(p, x + 8, y + 75, w - 16, h - 81, 113, false);
+    drawGraph(p, x + 11, y + 77, w - 22, h - 85, 113, false);
 }
 
 // Small Focus-layout tile: title + value + sparkline. Tapping it makes it the focused metric.
@@ -233,7 +240,7 @@ static void drawMiniTile(const Panel &p, int x, int y, int w, int h) {
     canvas.setTextColor(theme.text);
     canvas.setCursor(x + 8, y + 17);
     canvas.print(p.value);
-    drawGraph(p, x + 8, y + 36, w - 16, h - 42, 60, false);
+    drawGraph(p, x + 11, y + 38, w - 22, h - 46, 60, false);
 }
 
 // ---- Process table ----
@@ -246,44 +253,51 @@ static TableGeom tableGeom() {
     return {210, 5, 19};
 }
 
+// The table shares the bottom band with the clock tile on the right.
+static const int TABLE_W = 320;
+static const int CLOCK_X = TABLE_W;
+static const int CLOCK_W = SCREEN_W - TABLE_W;
 static const int TABLE_HEADER_H = 15;
-static const int COL_BAR_X = 208;       // CPU bar, scaled to one full core (100%), clipped
-static const int COL_BAR_W = 110;
-static const int COL_CPU_RIGHT = 400;   // right edge of the CPU% value
-static const int COL_MEM_RIGHT = 472;   // right edge of the MEM% value
+static const int NAME_CHARS = 11;       // size-2 text, 12px per char
+static const int COL_BAR_X = 146;       // CPU bar, scaled to one full core (100%), clipped
+static const int COL_BAR_W = 56;
+static const int COL_CPU_RIGHT = 258;   // right edge of the CPU% value
+static const int COL_MEM_RIGHT = 310;   // right edge of the MEM% value
+
+static void tableCard() {
+    int y = tableGeom().y;
+    card(0, y, TABLE_W, SCREEN_H - y);
+}
 
 static void drawTableHeader(int y) {
-    canvas.fillRect(0, y, SCREEN_W, TABLE_HEADER_H, theme.surface);
+    tableCard();
     canvas.setTextSize(1);
     canvas.setTextColor(theme.text2);
     canvas.setCursor(8, y + 5);
     canvas.print("TOP PROCESSES");
     // Connection status (dot + label, so it does not rely on color alone).
-    canvas.fillCircle(150, y + 8, 3, stale ? theme.critical : theme.good);
-    canvas.setCursor(158, y + 5);
+    canvas.fillCircle(96, y + 8, 3, stale ? theme.critical : theme.good);
+    canvas.setCursor(103, y + 5);
     canvas.print(stale ? (samples ? "NO HOST DATA" : "WAITING FOR HOST") : "LIVE");
-    char clock[32];
-    formatClock(clock, sizeof(clock));
-    canvas.setTextColor(theme.text);
-    printRight(clock, 340, y + 5);
-    canvas.setTextColor(theme.text2);
     printRight("CPU%", COL_CPU_RIGHT, y + 5);
     printRight("MEM%", COL_MEM_RIGHT, y + 5);
 }
 
 static void drawTableRow(int i, int y, int h) {
-    canvas.fillRect(0, y, SCREEN_W, h, theme.surface);
-    canvas.drawFastHLine(8, y, SCREEN_W - 16, theme.grid);
+    tableCard();
+    canvas.drawFastHLine(8, y, TABLE_W - 16, theme.grid);
     if (i >= metrics.numProcs) return;
     const Proc &p = metrics.procs[i];
     int ty = y + (h - 16) / 2 + 1;
     canvas.setTextSize(2);
     canvas.setTextColor(theme.text);
     canvas.setCursor(8, ty);
-    canvas.print(p.name);
+    char name[NAME_CHARS + 1];
+    strlcpy(name, p.name, sizeof(name));
+    canvas.print(name);
     int barW = (int)(constrain(p.cpu, 0.0f, 100.0f) / 100.0f * COL_BAR_W);
-    canvas.fillRect(COL_BAR_X, y + h / 2 - 4, COL_BAR_W, 8, theme.grid);
-    if (barW > 0) canvas.fillRect(COL_BAR_X, y + h / 2 - 4, barW, 8, theme.series[0]);
+    canvas.fillRoundRect(COL_BAR_X, y + h / 2 - 4, COL_BAR_W, 8, 4, theme.grid);
+    if (barW > 0) canvas.fillRoundRect(COL_BAR_X, y + h / 2 - 4, max(barW, 8), 8, 4, theme.series[0]);
     char buf[12];
     snprintf(buf, sizeof(buf), "%.1f", p.cpu);
     printRight(buf, COL_CPU_RIGHT, ty);
@@ -291,15 +305,60 @@ static void drawTableRow(int i, int y, int h) {
     printRight(buf, COL_MEM_RIGHT, ty);
 }
 
+// Clock tile: large time, AM/PM, and the date, in the bottom-right corner of the dashboard.
+static void drawClockTile(int y) {
+    int h = SCREEN_H - y;
+    card(CLOCK_X, y, CLOCK_W, h);
+    int cx = CLOCK_X + CLOCK_W / 2;
+    char hm[8], ampm[4], date[16];
+    if (clockValid()) {
+        strlcpy(hm, Time.format(Time.now(), "%l:%M").c_str(), sizeof(hm));
+        strlcpy(ampm, Time.format(Time.now(), "%p").c_str(), sizeof(ampm));
+        strlcpy(date, Time.format(Time.now(), "%a %b %e").c_str(), sizeof(date));
+    } else {
+        strcpy(hm, "--:--");
+        ampm[0] = 0;
+        strcpy(date, "no time yet");
+    }
+    char *t = hm;
+    while (*t == ' ') t++;  // %l pads single-digit hours
+    // Time in size 4 (24x32 per char) with AM/PM in size 2 beside it, centered as one unit.
+    int tw = strlen(t) * 24, aw = ampm[0] ? 4 + strlen(ampm) * 12 : 0;
+    int x0 = cx - (tw + aw) / 2;
+    int ty = y + (h - 32 - 10 - 16) / 2;
+    canvas.setTextSize(4);
+    canvas.setTextColor(theme.text);
+    canvas.setCursor(x0, ty);
+    canvas.print(t);
+    if (aw) {
+        canvas.setTextSize(2);
+        canvas.setTextColor(theme.text2);
+        canvas.setCursor(x0 + tw + 4, ty + 16);
+        canvas.print(ampm);
+    }
+    canvas.setTextSize(2);
+    canvas.setTextColor(theme.text2);
+    char *d = date;
+    // Collapse the double space %e leaves before single-digit days.
+    for (char *q = strstr(d, "  "); q; q = strstr(d, "  ")) memmove(q, q + 1, strlen(q));
+    printCentered(d, cx, ty + 32 + 10);
+}
+
+static void drawClock() {
+    int y = tableGeom().y;
+    renderRegion(CLOCK_X, y, CLOCK_W, SCREEN_H - y, [&] { drawClockTile(y); });
+}
+
 static void drawTable() {
     TableGeom t = tableGeom();
-    renderRegion(0, t.y, SCREEN_W, TABLE_HEADER_H, [&] { drawTableHeader(t.y); });
+    renderRegion(0, t.y, TABLE_W, TABLE_HEADER_H, [&] { drawTableHeader(t.y); });
     for (int i = 0; i < t.rows; i++) {
         int ry = t.y + TABLE_HEADER_H + i * t.rowH;
-        renderRegion(0, ry, SCREEN_W, t.rowH, [&] { drawTableRow(i, ry, t.rowH); });
+        renderRegion(0, ry, TABLE_W, t.rowH, [&] { drawTableRow(i, ry, t.rowH); });
     }
     int end = t.y + TABLE_HEADER_H + t.rows * t.rowH;
-    if (end < SCREEN_H) renderRegion(0, end, SCREEN_W, SCREEN_H - end, [] { canvas.fillScreen(theme.surface); });
+    if (end < SCREEN_H) renderRegion(0, end, TABLE_W, SCREEN_H - end, [] { tableCard(); });
+    drawClock();
 }
 
 // ---- Layouts ----
@@ -351,7 +410,8 @@ void drawDashboard() {
 
 void drawDashboardStatus() {
     int y = tableGeom().y;
-    renderRegion(0, y, SCREEN_W, TABLE_HEADER_H, [&] { drawTableHeader(y); });
+    renderRegion(0, y, TABLE_W, TABLE_HEADER_H, [&] { drawTableHeader(y); });
+    drawClock();
 }
 
 bool dashboardTap(int x, int y) {

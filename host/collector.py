@@ -7,8 +7,11 @@ Line format (keys kept short to save serial bandwidth / device RAM):
   c=cpu%  r=ram%  ru/rt=ram used/total GB  d=disk used%  dr/dw=disk read/write MB/s
   nr/nt=net rx/tx KB/s  p=top 5 processes [name, cpu%, mem%] sorted by cpu
   t=unix time (s)  tz=local UTC offset (s), so the device can show local date/time
+  g=GPU utilization % (Apple GPU "Device Utilization %" from ioreg; omitted if unavailable)
 """
 import json
+import re
+import subprocess
 import sys
 import time
 
@@ -16,6 +19,20 @@ import psutil
 
 INTERVAL = 2.0
 NAME_LEN = 16
+
+
+GPU_RE = re.compile(rb'"Device Utilization %"=(\d+)')
+
+
+def gpu_percent():
+    """Apple GPU utilization from the IOAccelerator performance statistics (no root needed); None if unknown."""
+    try:
+        out = subprocess.run(["ioreg", "-r", "-d", "1", "-w", "0", "-c", "IOAccelerator"],
+                             capture_output=True, timeout=1).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    m = GPU_RE.search(out)
+    return float(m.group(1)) if m else None
 
 
 class Collector:
@@ -70,10 +87,13 @@ class Collector:
             "nr": round((net.bytes_recv - self._last_net.bytes_recv) / dt / 1e3, 1),
             "nt": round((net.bytes_sent - self._last_net.bytes_sent) / dt / 1e3, 1),
             "p": self._top_procs(),
+            "g": gpu_percent(),
             "t": int(time.time()),
             "tz": time.localtime().tm_gmtoff,
         }
         self._last_t, self._last_disk, self._last_net = now, disk, net
+        if data["g"] is None:
+            del data["g"]
         return data
 
 

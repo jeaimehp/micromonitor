@@ -25,7 +25,7 @@ struct Proc {
 };
 
 struct Metrics {
-    float cpu, ram, ramUsed, ramTotal, disk, diskRead, diskWrite, netRx, netTx;
+    float cpu, gpu, ram, ramUsed, ramTotal, disk, diskRead, diskWrite, netRx, netTx;
     Proc procs[NUM_PROCS];
     int numProcs;
     int32_t time;      // host unix time

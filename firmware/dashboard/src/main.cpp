@@ -21,6 +21,7 @@ bool parseMetrics(const char *line, Metrics &m) {
         JSONString key = it.name();
         JSONValue v = it.value();
         if (key == "c") m.cpu = v.toDouble();
+        else if (key == "g") m.gpu = v.toDouble();
         else if (key == "r") m.ram = v.toDouble();
         else if (key == "ru") m.ramUsed = v.toDouble();
         else if (key == "rt") m.ramTotal = v.toDouble();
