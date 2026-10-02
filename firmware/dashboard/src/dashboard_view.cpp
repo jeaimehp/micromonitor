@@ -262,6 +262,11 @@ static void drawTableHeader(int y) {
     canvas.fillCircle(150, y + 8, 3, stale ? theme.critical : theme.good);
     canvas.setCursor(158, y + 5);
     canvas.print(stale ? (samples ? "NO HOST DATA" : "WAITING FOR HOST") : "LIVE");
+    char clock[32];
+    formatClock(clock, sizeof(clock));
+    canvas.setTextColor(theme.text);
+    printRight(clock, 340, y + 5);
+    canvas.setTextColor(theme.text2);
     printRight("CPU%", COL_CPU_RIGHT, y + 5);
     printRight("MEM%", COL_MEM_RIGHT, y + 5);
 }

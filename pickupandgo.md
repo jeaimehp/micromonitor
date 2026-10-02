@@ -46,7 +46,7 @@ Each step ends with: test, git commit, update this file.
 | 13 | Touch menu overlay + persisted settings (EEPROM) + rotation | DONE |
 | 14 | Themes + layouts in firmware (built-in default; layouts Quad/Stacked/Focus/Tiles; mixed photo left/right) | DONE (mixed side comes with step 19) |
 | 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | DONE |
-| 15b | Date/time (user request): host sends local time, firmware clock; shown on dashboard header, album badge (menu toggle), mixed | TODO |
+| 15b | Date/time (user request): host sends local time, firmware clock; shown on dashboard header, album badge (menu toggle), mixed | DONE for dashboard (album badge + mixed come with steps 18/19) |
 | 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | TODO |
 | 17 | Firmware SD support: list folders, load themes from SD | TODO |
 | 18 | Album view: slideshow, tap left/right edge = prev/next, middle = menu | TODO |
@@ -78,7 +78,7 @@ firmware/touchtest = guided 4-corner calibration (targets inset 30px, rotation 3
 swap=1 (raw y -> screen x), uL=3562 uR=286 (raw y at x=30 / x=449), vT=516 vB=3537 (raw x at y=30 / y=289).
 Use these as the firmware DEFAULT; the menu's "Calibrate touch" item (requested by the user) reruns the guided screen and saves it to EEPROM.
 For rotation 1 (flipped 180), mirror both axes: sx' = 479 - sx, sy' = 319 - sy.
-Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + layouts. Step 15 is done (SD content). NEXT: step 15b (date/time, a user request), then step 16
+Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + layouts. Step 15 is done (SD content). Step 15b is done (clock in the dashboard table header). NEXT: step 16
 (SD card: ASK the user to insert it; also ask whether they have a photo folder for /photos; the only sample photo so far is the
 macOS Sonoma wallpaper, since the wallpaper thumbnails are only 214x130).
 µMonitor was restarted after step 13.
@@ -139,6 +139,11 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
   region to fit the canvas.
 - Free RAM after step 14: about 24.0 KB.
 
+## Date/time (step 15b)
+- The collector adds "t" (unix time) and "tz" (tm_gmtoff seconds). Firmware syncClock() sets Time.zone + Time.setTime if it is off by >2s.
+  formatClock() gives "Fri Oct 2  4:21 PM" ("" until synced). The loop redraws the table header every minute, even when stale.
+- REMEMBER: µMonitor bundles host/*.py, so rebuild it (`rm -rf build dist && .venv/bin/python setup.py py2app`) after any host change.
+
 ## SD card content (step 15)
 - Regenerate everything: `.venv/bin/python tools/make_themes.py && .venv/bin/python tools/make_pixelart.py &&
   .venv/bin/python tools/sd_convert.py --out sdcard/motivation sdcard_preview/motivation/*.png &&
@@ -189,6 +194,7 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 15b: date/time synced from the host and shown in the dashboard header (webcam verified). µMonitor rebuilt.
 - Step 15: pixel-art generator (10 cards x L/P), .565 converter, sample photo (Sonoma). Round-trip verified.
 - Step 14: 8 validated themes (Dark/Light built in), 4 layouts, Focus tile tap. All layouts + Light verified by webcam.
 - Step 13: firmware split into modules; touch menu (rotate, calibrate, close, timeout), EEPROM settings (flip survives reboot),

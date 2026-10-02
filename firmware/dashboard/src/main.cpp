@@ -29,6 +29,8 @@ bool parseMetrics(const char *line, Metrics &m) {
         else if (key == "dw") m.diskWrite = v.toDouble();
         else if (key == "nr") m.netRx = v.toDouble();
         else if (key == "nt") m.netTx = v.toDouble();
+        else if (key == "t") m.time = v.toInt();
+        else if (key == "tz") m.tzOffset = v.toInt();
         else if (key == "p" && v.isArray()) {
             JSONArrayIterator procs(v);
             m.numProcs = 0;
@@ -71,6 +73,26 @@ bool readLine() {
     return false;
 }
 
+// ---- Clock: set from the host's time, then kept by the Xenon's own RTC between samples ----
+static void syncClock() {
+    if (metrics.time <= 0) return;
+    Time.zone(metrics.tzOffset / 3600.0f);
+    if (!Time.isValid() || abs((long)(Time.now() - metrics.time)) > 2) Time.setTime(metrics.time);
+}
+
+bool clockValid() {
+    return Time.isValid() && Time.year() >= 2024;
+}
+
+void formatClock(char *buf, size_t len) {
+    if (!clockValid()) {
+        buf[0] = 0;
+        return;
+    }
+    // e.g. "Fri Oct 2  4:21 PM"
+    strlcpy(buf, Time.format(Time.now(), "%a %b %e %l:%M %p").c_str(), len);
+}
+
 // ---- Main loop ----
 void redrawView() {
     if (uiBusy) return;
@@ -89,6 +111,7 @@ static void handleLine() {
         Serial.printlnf("err %lu", (unsigned long)parseErrors);
         return;
     }
+    syncClock();
     samples++;
     lastSampleMs = millis();
     stale = false;
@@ -123,6 +146,12 @@ void loop() {
     serviceSerial();
     if (!stale && millis() - lastSampleMs > STALE_MS) {
         stale = true;
+        if (!menuOpen && !uiBusy) drawDashboardStatus();
+    }
+    // Keep the clock current even when no samples arrive.
+    static int lastMinute = -1;
+    if (clockValid() && Time.minute() != lastMinute) {
+        lastMinute = Time.minute();
         if (!menuOpen && !uiBusy) drawDashboardStatus();
     }
     int x, y;

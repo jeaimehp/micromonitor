@@ -28,6 +28,8 @@ struct Metrics {
     float cpu, ram, ramUsed, ramTotal, disk, diskRead, diskWrite, netRx, netTx;
     Proc procs[NUM_PROCS];
     int numProcs;
+    int32_t time;      // host unix time
+    int32_t tzOffset;  // host UTC offset in seconds
 };
 
 extern Metrics metrics;
@@ -153,5 +155,7 @@ void menuTap(int x, int y);
 void menuTick();                // auto-close timeout
 
 // ---- Main (main.cpp) ----
-void serviceSerial();           // read and apply host samples; safe to call from blocking UI loops
+void serviceSerial();
+bool clockValid();
+void formatClock(char *buf, size_t len);  // "" until the host has sent the time           // read and apply host samples; safe to call from blocking UI loops
 void redrawView();

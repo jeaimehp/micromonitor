@@ -6,6 +6,7 @@ Line format (keys kept short to save serial bandwidth / device RAM):
    "nr":12.4,"nt":3.1,"p":[["name",cpu,mem],...5]}
   c=cpu%  r=ram%  ru/rt=ram used/total GB  d=disk used%  dr/dw=disk read/write MB/s
   nr/nt=net rx/tx KB/s  p=top 5 processes [name, cpu%, mem%] sorted by cpu
+  t=unix time (s)  tz=local UTC offset (s), so the device can show local date/time
 """
 import json
 import sys
@@ -69,6 +70,8 @@ class Collector:
             "nr": round((net.bytes_recv - self._last_net.bytes_recv) / dt / 1e3, 1),
             "nt": round((net.bytes_sent - self._last_net.bytes_sent) / dt / 1e3, 1),
             "p": self._top_procs(),
+            "t": int(time.time()),
+            "tz": time.localtime().tm_gmtoff,
         }
         self._last_t, self._last_disk, self._last_net = now, disk, net
         return data
