@@ -180,8 +180,12 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 ## Album + menu v2 (step 18)
 - album.cpp: albumShow/albumStep/albumTick/albumTap, drawClockBadge (132x44 rounded badge bottom-right; redrawn each minute),
   messages when the host is stale / the folder is empty / a transfer fails (retries after 3s). Slideshow SLIDE_SECONDS = 5/10/30.
-- Rotation: the menu's Rotate cycles Normal/Flipped/Portrait/Portrait flip (settings.flip + settings.albumPortrait). Portrait is
-  ONLY for the album (portraitActive()); the menu always opens in landscape. tft rotations: landscape 3 (1 flipped), portrait 0 (2 flipped).
+- Rotation: the menu's Rotate cycles Normal/Flipped/Portrait/Portrait flip (settings.flip + settings.albumPortrait; the name is historical).
+  Portrait now applies to EVERY view (user report: "portrait mode remains horizontal" in Mixed); the menu always opens in landscape.
+  dashboard_view.cpp: portrait() = tft.height() > width(). tableGeom()/tableBottom()/clockRect()/focusGeom()/mixGeom() return per-
+  orientation geometry. Portrait: Quad = 4 panels 320x72 + table at y288 + clock; Stacked = strips 320x64 + table y256; Focus = main
+  320x150 + 3 mini tiles 107x60 + table y210; Tiles = 2x2 160x110 + table y220; the clock fills the rest. Mixed = photo 320x213,
+  CPU/GPU + RAM 160x70, DISK + NET 160x105, strip y388, one-line clock y441. Standard panels narrower than 200px skip the scale label. tft rotations: landscape 3 (1 flipped), portrait 0 (2 flipped).
   rawToScreen converts calibrated rot-3 coords per tft.getRotation(): r1 (479-sx,319-sy), r0 (sy,479-sx), r2 (319-sy,sx).
   Portrait taps were NOT verified with a finger (only via injected taps).
 - Canvas::setOrigin sets the logical size to 480x480 so GFX doesn't clip text at portrait coordinates.
@@ -272,6 +276,7 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Portrait layouts for all views (dashboard x4 + mixed), verified by webcam with the display stood upright.
 - Public GitHub repo github.com/jeaimehp/micromonitor (MIT, Je'aime Powell). History was rewritten before the first push: the Apple Sonoma
   wallpaper sample was removed (not redistributable) and the device serial redacted; a local tag `pre-public-backup` holds the old
   history (NOT pushed). The README has a parts list (incl. the Thingiverse case thing:2836944 by Empor), Xenon/display specs, full

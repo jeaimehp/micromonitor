@@ -20,7 +20,8 @@ its own touch menu.
 - **4 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers)
 - **8 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, High Contrast (colorblind-safe graph colors)
 - **Album view**: a slideshow of your photos or the built-in pixel-art "motivation" cards; tap the edges for
-  previous/next; portrait mode; optional clock badge
+  previous/next; optional clock badge
+- **Landscape or portrait**: every view has a portrait layout too; stand the display upright and choose Portrait
 - **Mixed view**: a photo next to a compact dashboard
 - **Timer and stopwatch**, started from the Mac and shown on the display; tap **TIME'S UP** to dismiss it
 - **Touch menu** on the display, mirrored in the Mac menu bar app; changes on either side show up on the other
@@ -147,7 +148,8 @@ because the login item remembers where the app was.
 
 ### On the display
 - **Tap** anywhere to open the menu. It closes after 10 seconds or with CLOSE.
-  - Choose the view (Dashboard / Album / Mixed), theme, layout, album folder, slideshow speed and rotation.
+  - Choose the view (Dashboard / Album / Mixed), theme, layout, album folder, slideshow speed and rotation
+    (Normal, Flipped, Portrait, Portrait flip). The menu itself always opens in landscape.
   - Under **More…**: the clock badge on pictures, which side the mixed-view photo goes on, and **Calibrate touch**
     (press the 4 targets).
 - **Album**: tap the left or right third for the previous or next picture; the middle opens the menu.
