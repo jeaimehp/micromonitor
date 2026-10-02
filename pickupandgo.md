@@ -42,7 +42,7 @@ Each step ends with: test, git commit, update this file.
 | 9 | Top-5 process table | DONE |
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | DONE |
 | 11 | macOS menu bar app "µMonitor" (user request): rumps + py2app, status icon | DONE (menu UI awaiting user visual check) |
-| 12 | Touch bring-up: detect STMPE610 (SPI, CS D3) vs TSC2007 (I2C 0x48), raw readings, calibration screen | TODO |
+| 12 | Touch bring-up: detect STMPE610 (SPI, CS D3) vs TSC2007 (I2C 0x48), raw readings, calibration screen | DONE (awaiting user accuracy confirmation) |
 | 13 | Touch menu overlay + persisted settings (EEPROM) + rotation | TODO |
 | 14 | Themes + layouts in firmware (built-in default; layouts Quad/Stacked/Focus/Tiles; mixed photo left/right) | TODO |
 | 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | TODO |
@@ -72,7 +72,12 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Steps 0-11 are complete. NEXT: step 12 (touch bring-up). See "Phase 2 spec" above.
+Steps 0-11 are complete. Step 12 is done: the touch controller is an STMPE610 (ver 0x0811, SPI, CS D3) and works with Adafruit_STMPE610_RK.
+firmware/touchtest = guided 4-corner calibration (targets inset 30px, rotation 3), then a draw mode. Measured calibration (rotation 3):
+swap=1 (raw y -> screen x), uL=3562 uR=286 (raw y at x=30 / x=449), vT=516 vB=3537 (raw x at y=30 / y=289).
+Use these as the firmware DEFAULT; the menu's "Calibrate touch" item (requested by the user) reruns the guided screen and saves it to EEPROM.
+For rotation 1 (flipped 180), mirror both axes: sx' = 479 - sx, sy' = 319 - sy.
+NEXT: step 13 (touch menu). µMonitor was stopped (pkill) to free the port; restart it with `open "dist/µMonitor.app"` when the dashboard firmware is back. See "Phase 2 spec" above.
 (Earlier notes:) Steps 0-9 are complete.
 Step 10: stale indicator (LIVE / NO HOST DATA / WAITING FOR HOST in the table header) is done and verified by webcam; run.sh, README.md and
 tools/install-launchd.sh (NOT installed; it changes login items, so ask the user) are written. 12-min soak PASSED: 360/360 acks, 0 errors,
@@ -139,6 +144,7 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 12: STMPE610 found; guided calibration measured; taps plotted.
 - Step 11: µMonitor menu bar app (host/menubar.py, setup.py, tools/make_icon.py); sender.py refactored into a Streamer class.
 - Step 10: stale indicator, run.sh, README, launchd script, ack now includes free=. 12-minute soak passed.
 - Step 9: process table; verified with 2x `yes` (both 100.0 at top, matching the sender's JSON). Host now ASCII-sanitizes names.
