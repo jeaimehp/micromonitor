@@ -48,9 +48,10 @@ Each step ends with: test, git commit, update this file.
 | 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | DONE |
 | 15b | Date/time (user request): host sends local time, firmware clock; shown on dashboard header, album badge (menu toggle), mixed | DONE for dashboard (album badge + mixed come with steps 18/19) |
 | 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | DONE (copied + ejected; user asked to move it to the wing) |
-| 17 | Firmware SD support: list folders, load themes from SD | IN PROGRESS |
-| 18 | Album view: slideshow, tap left/right edge = prev/next, middle = menu | TODO |
-| 19 | Mixed view: half-size photo + compact graphs | TODO |
+| 17 | ~~Firmware SD support~~ ABANDONED: the card only mounted 10-50% of the time (see notes). The user chose to SKIP SD and STREAM from the Mac | REPLACED |
+| 17s | Streaming: host content (themes, motivation PNGs, photos folder) + req/pic protocol in the Streamer; SD code removed from firmware; themes requested on connect | TODO |
+| 18 | Album view: streamed pictures, slideshow 5/10/30s, tap left/right third = prev/next, middle = menu, portrait (album only), clock badge | TODO |
+| 19 | Mixed view: 240x160 streamed photo (left/right) + compact CPU/GPU + RAM, disk/net panels, top process + clock strip | TODO |
 | 19b | Timer + stopwatch (user request): µMonitor menu (timer presets 1/5/10/15/25/60 min + custom, pause/resume, cancel;
 stopwatch start/pause/reset) -> sent in samples as state (start epoch, duration, paused/running); the device ticks it locally every 1s
 and shows a large-digit banner over any view; at zero it flashes TIME'S UP and µMonitor posts a macOS notification | TODO |
@@ -85,7 +86,7 @@ Step 13 is done (the user confirmed touch accuracy). Step 14 is done: themes + l
 holds /themes (8), /motivation (20), /photos (2: Sonoma sample; the user gave no photo folder), checksums verified, ejected.
 SPOTLIGHT: .metadata_never_index was added; the firmware must skip dot-files/dirs (.Spotlight-V100). The ghost card was removed at the user's request (9 cards now, m01-m09). The SD card still holds the OLD 10-card set (it has a ghost):
 re-copy /motivation (delete the old m*.565 first) the next time the card is in the Mac.
-Step 17 IN PROGRESS, BLOCKED on SD reliability. sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
+Step 17 SD was ABANDONED (user decision: stream from the Mac). NEXT: step 17s. History of the SD investigation: sdstore.cpp works (themes merge, picture listing, "sdinfo", "sdls PATH", "sdtest" = 10
 mount+list cycles), but the card mounts only about 20-50% of the time and listings stop early, at EVERY clock (1/4/16 MHz), with or
 without touch, with or without DMA. firmware/sdprobe (SD-only, TFT/touch CS held high, byte-by-byte SPI variant of SdFat) reproduces it
 -> most likely PHYSICAL (card not fully seated, or this ADATA 16GB card is poor in SPI mode). Asked the user to reseat the card and,
@@ -135,6 +136,16 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   dashboardTap), Tiles (2x2 with size-4 numbers + sparklines). HISTORY=240 samples. renderRegion(x,y,w,h,lambda) strips any
   region to fit the canvas.
 - Free RAM after step 14: about 24.0 KB.
+
+## Streaming design (step 17s, replaces the SD card)
+- Device -> host lines: `req themes`, `req pic <folder 0=photos|1=motivation> <n> <w> <h>`.
+- Host -> device: `thm <name>|<layout>|<11 hex colors in TC order>` ... `thm end`; for pictures `pic <count> <w> <h>\n` + w*h*2 raw
+  RGB565 big-endian bytes (count=0: no pictures, no payload). n wraps modulo count on the host. The host resizes/crops on the fly
+  (cover fit), so there are no .565 files. Portrait requests are 320x480, mixed 240x160.
+- The device reads the payload with Serial.readBytes into canvasBuf strips and pushes them WITHOUT a byte swap (pushRaw).
+  JSON sample lines that arrive while it waits for `pic` are still ingested.
+- Host content: themes (tools/make_themes.py output) + motivation PNGs (tools/make_pixelart.py) are bundled in µMonitor; the photos
+  folder defaults to a bundled sample (Sonoma) and can be changed from the µMonitor menu ("Choose Photos Folder…").
 
 ## User-requested UI changes (after step 16)
 - Clock TILE: bottom-right 160px of the table band in every layout (time in size 4 + AM/PM, date below); the table is now 320px wide
