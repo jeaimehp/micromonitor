@@ -43,7 +43,7 @@ Each step ends with: test, git commit, update this file.
 | 10 | Polish: stale indicator, partial redraws, run.sh / optional launchd | DONE |
 | 11 | macOS menu bar app "µMonitor" (user request): rumps + py2app, status icon | DONE (menu UI awaiting user visual check) |
 | 12 | Touch bring-up: detect STMPE610 (SPI, CS D3) vs TSC2007 (I2C 0x48), raw readings, calibration screen | DONE (awaiting user accuracy confirmation) |
-| 13 | Touch menu overlay + persisted settings (EEPROM) + rotation | TODO |
+| 13 | Touch menu overlay + persisted settings (EEPROM) + rotation | DONE |
 | 14 | Themes + layouts in firmware (built-in default; layouts Quad/Stacked/Focus/Tiles; mixed photo left/right) | TODO |
 | 15 | Mac tool: generate pixel-art motivation set, theme files, convert photos -> repo `sdcard/` | TODO |
 | 16 | SD card: ASK the user to insert it in the Mac, copy files, eject, ask them to move it to the FeatherWing | TODO |
@@ -77,7 +77,8 @@ firmware/touchtest = guided 4-corner calibration (targets inset 30px, rotation 3
 swap=1 (raw y -> screen x), uL=3562 uR=286 (raw y at x=30 / x=449), vT=516 vB=3537 (raw x at y=30 / y=289).
 Use these as the firmware DEFAULT; the menu's "Calibrate touch" item (requested by the user) reruns the guided screen and saves it to EEPROM.
 For rotation 1 (flipped 180), mirror both axes: sx' = 479 - sx, sy' = 319 - sy.
-NEXT: step 13 (touch menu). µMonitor was stopped (pkill) to free the port; restart it with `open "dist/µMonitor.app"` when the dashboard firmware is back. See "Phase 2 spec" above.
+Step 13 is done. The user confirmed touch accuracy is good. NEXT: step 14 (themes + layouts in firmware).
+µMonitor was restarted after step 13.
 (Earlier notes:) Steps 0-9 are complete.
 Step 10: stale indicator (LIVE / NO HOST DATA / WAITING FOR HOST in the table header) is done and verified by webcam; run.sh, README.md and
 tools/install-launchd.sh (NOT installed; it changes login items, so ask the user) are written. 12-min soak PASSED: 360/360 acks, 0 errors,
@@ -103,6 +104,24 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
   Feather->Xenon pin map: TFT_CS 9->D4, TFT_DC 10->D5, SD_CS 5->D2, TOUCH_CS 6->D3 (drive SD/touch CS HIGH).
   Pin map CONFIRMED on hardware.
 - firmware/hello: prints "hello N os=1.5.2" every 1s. Verified.
+
+## Firmware structure (firmware/dashboard/src, since step 13)
+- app.h: shared declarations (pins, Metrics, Canvas, Theme, Settings, touch/menu/view APIs).
+- main.cpp: serial line reader + JSON parse, handleLine() (also the test command "tap X Y"), setup/loop, redrawView().
+  `uiBusy` = a blocking screen owns the display. Samples are always ingested but drawn only if !menuOpen && !uiBusy
+  (the ack then ends with " hidden").
+- gfx.cpp: tft, Canvas (bufW/bufH buffer + origin offset), the built-in theme "Dark", printRight/printCentered, renderStrips(draw)
+  (renders a full-screen draw function in 480x40 strips. setOrigin() widens the logical size to 480x320 so GFX text isn't clipped).
+- dashboard_view.cpp: panels, history, drawPanel/drawTable, ingestSample(), drawDashboard(), drawDashboardStatus().
+- touch.cpp: STMPE610, readRawPress (averages one press and calls serviceSerial while held), rawToScreen (calibration + flip),
+  pollTap, injectTap, runCalibration (guided 4 corners, aborts after 30s without a press).
+- settings.cpp: Settings struct in EEPROM at 0 (magic "XMON", version 1). Bump SETTINGS_VERSION when the struct changes (resets to defaults).
+- menu.cpp: BUTTONS[] geometry (header with CLOSE; rows y 52/118/184/250, h 56), describe() = caption/value/enabled per button,
+  menuTap() actions, 10s auto-close. Album/Mixed/Theme/Layout/Folder/Slides are DISABLED placeholders until their steps.
+- Menu button centers for tap tests: Dashboard (83,80) Album (240,80) Mixed (397,80) Theme (122,146) Layout (358,146)
+  Folder (122,212) Slides (358,212) Rotate (122,278) Calibrate (358,278) Close (420,25). Any tap opens the menu.
+- tools/uitest.py "tap X Y, wait S, snap NAME, ..." --snapdir D: streams real samples and drives the UI. Use it for UI tests
+  (stop µMonitor first: `pkill -f "MacOS/µMonitor"`. Restart it with `open "dist/µMonitor.app"`).
 
 ## Rendering approach (IMPORTANT for performance)
 - Drawing directly with tft.* GFX calls is extremely slow (about 3s for a few lines of text): each pixel or char is a separate SPI call.
@@ -144,6 +163,8 @@ It points at the app's location at the time, so re-toggle it if the app moves (e
 - Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 13: firmware split into modules; touch menu (rotate, calibrate, close, timeout), EEPROM settings (flip survives reboot),
+  serial tap injection + tools/uitest.py. All verified by webcam.
 - Step 12: STMPE610 found; guided calibration measured; taps plotted.
 - Step 11: µMonitor menu bar app (host/menubar.py, setup.py, tools/make_icon.py); sender.py refactored into a Streamer class.
 - Step 10: stale indicator, run.sh, README, launchd script, ack now includes free=. 12-minute soak passed.
