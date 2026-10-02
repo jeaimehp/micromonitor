@@ -167,3 +167,7 @@ tools/                make_themes.py, make_pixelart.py, make_icon.py, uitest.py 
 setup.py              py2app build for µMonitor
 pickupandgo.md        Detailed engineering notes / handoff log for every step
 ```
+
+## License
+
+[MIT](LICENSE). The firmware uses the Adafruit HX8357, GFX and STMPE610 libraries (Particle ports by rickkas7), which carry their own BSD licenses.
