@@ -33,7 +33,7 @@ Each step ends with: test, git commit, update this file.
 | 0 | Project setup: git, venv, tools | DONE |
 | 1 | Device bring-up: Device OS 1.5.2, hello firmware, USB serial heartbeat | TODO |
 | 2 | Display bring-up: HX8357 driver, pin map, test pattern (user confirms visually) | TODO |
-| 3 | Host collector: metrics as JSON lines every 2s | TODO |
+| 3 | Host collector: metrics as JSON lines every 2s | DONE (done early, while blocked on login) |
 | 4 | Serial link host->device, parse + ack, auto-reconnect | TODO |
 | 5 | Dashboard frame + CPU graph | TODO |
 | 6 | RAM graph | TODO |
@@ -47,8 +47,18 @@ Each step ends with: test, git commit, update this file.
 - A top-5 process table at the bottom, about 110px high
 
 ## Current status
-Step 0 complete. Next: step 1. The user needs to run `particle login` (suggest `! /Users/jeaimehp/.hermes/node/bin/particle login`).
-Still undecided: whether to verify the display by webcam (imagesnap) or have the user describe it. Ask at step 2.
+Steps 0 and 3 are complete. Step 1 is BLOCKED: the user said they logged in, but `particle whoami` still reports
+"not logged in". Ask the user to run `! /Users/jeaimehp/.hermes/node/bin/particle whoami` and, if needed, log in again.
+Do NOT read ~/.particle config files (the permission policy blocks reading credentials).
+Display verification: the user approved WEBCAM verification. A Logitech C920 ("HD Pro Webcam C920") is pointed at the screen.
+Use imagesnap (brew) for this; there is also an OBSBOT camera, so select the device by name.
+
+## Host collector protocol (host/collector.py)
+- Test with `.venv/bin/python host/collector.py 3`, which prints 3 lines (one per 2s; 0 means run forever).
+- JSON keys: c cpu%, r ram%, ru/rt ram used/total GB, d disk used% (/System/Volumes/Data), dr/dw disk MB/s,
+  nr/nt net KB/s, p = 5 x [name(<=16 chars), cpu%, mem%]. A line is about 230 bytes.
+- Per-process cpu% is per core (it can exceed 100). Root processes (e.g. WindowServer) are hidden without sudo.
 
 ## Log
+- Step 3: collector.py verified: `yes` shows at 99.9% in the top-5, disk % matches df.
 - Step 0: git init, .venv with psutil and pyserial, dfu-util via brew, particle-cli via npm. Xenon is visible in DFU.
