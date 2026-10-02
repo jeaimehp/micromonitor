@@ -17,10 +17,10 @@ The Mac collects the metrics, and the Xenon only parses and draws. The SD card i
 to insert it only if a future feature needs it, and wait for them to confirm.
 
 ## Environment facts
-- macOS 26 (arm64). Project: `/Users/jeaimehp/Documents/xenon-feather-tft`
+- macOS 26 (arm64). Project: the repo root (originally developed in ~/Documents/xenon-feather-tft)
 - Python venv: `.venv/` (psutil 7.2.2, pyserial 3.5). Run with `.venv/bin/python`.
 - dfu-util 0.11 (Homebrew).
-- particle-cli 3.51.0 at `/Users/jeaimehp/.hermes/node/bin/particle` (NOT on PATH, so use the full path).
+- particle-cli 3.51.0 (npm global; firmware/flash.sh finds it on PATH or in `$(npm prefix -g)/bin`).
 - Xenon DFU USB id `2b04:d00e`, serial `<device-serial>`.
 - Xenon's last supported Device OS is **1.5.2**. Plan: cloud compile with `--target 1.5.2`.
   Fallback: local build from device-os v1.5.2 source.
