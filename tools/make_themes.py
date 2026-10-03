@@ -14,7 +14,7 @@ import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 KEYS = ["surface", "grid", "text", "text2", "series1", "series2", "good", "critical", "separator", "button", "accent"]
-LAYOUTS = ["quad", "stacked", "focus", "tiles", "lcars", "tron"]
+LAYOUTS = ["quad", "stacked", "focus", "tiles", "lcars", "tron", "xp"]
 BUILTIN = ["Dark", "Light"]
 
 THEMES = [
@@ -49,6 +49,11 @@ THEMES = [
     dict(name="Tron", layout="tron", surface="000000", grid="0f3138", text="d8fbff", text2="7fdfee",
          series1="1ea0bc", series2="d9772e", good="4fe3a6", critical="ff5a3c", separator="000000",
          button="14505a", accent="bff6ff"),
+    # Windows XP: Luna. Beige "button face" cards with Luna-blue gaps (separator), black text; series are Luna blue and
+    # an orange (validated on the beige). The xp layout itself draws the fixed Luna / Task Manager palette.
+    dict(name="Windows XP", layout="xp", surface="ece9d8", grid="c5c2b2", text="000000", text2="4d4d4d",
+         series1="2a64d6", series2="d9622b", good="2e8a2e", critical="c62d1f", separator="0a3fd0",
+         button="d6d2c2", accent="0054e3"),
     dict(name="High Contrast", layout="tiles", surface="000000", grid="666666", text="ffffff", text2="e6e6e6",
          series1="3987e5", series2="c98500", good="0ca30c", critical="ff4040", separator="4d4d4d",
          button="1a1a1a", accent="ffffff"),

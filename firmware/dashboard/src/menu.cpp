@@ -99,7 +99,7 @@ static void describe(int id, ButtonText &t) {
         strcpy(t.value, "Calibrate");
         break;
     case B_LPHOTO:
-        t.caption = "photo in LCARS layout";
+        t.caption = "photo in LCARS/XP layout";
         strcpy(t.value, settings.lcarsPhoto ? "On" : "Off");
         break;
     case B_BACK: strcpy(t.value, "Back"); break;

@@ -828,6 +828,511 @@ static void drawTronTermOnly() {
     renderRegion(g.term.x, g.term.y, g.term.w, g.term.h, [&] { drawTronTerm(g); });
 }
 
+// ---- XP layout: Windows XP (Luna) Task Manager, Performance tab, on the Bliss desktop with the taskbar ----
+// The layout is a skin: its colors are the fixed Luna / Task Manager palette, so it stays legible with any theme.
+// The whole screen is one scene (drawXpScene, absolute coordinates); any rectangle is redrawn by rendering the scene
+// clipped to it, which lets the timer balloon overlap the window and disappear cleanly. With the layout photo on
+// (the same setting as LCARS), the photo gets its own "My Pictures" window and Task Manager makes room for it.
+struct XpGeom {
+    int W, H;
+    bool narrow;            // Task Manager window under 400px wide: shorter title, tabs and status text
+    Rect win, taskbar, tray, balloon;
+    Rect photoWin, photo;   // photo: the picture inside photoWin (w = 0 when the photo is off)
+    Rect cpuGauge, cpuHist, memGauge, memHist;
+    Rect disk, net, procs;  // procs: the top process (landscape), the top 3 (portrait) or none (w = 0)
+};
+
+static XpGeom xpGeom() {
+    XpGeom g;
+    g.W = tft.width();
+    g.H = tft.height();
+    const bool tall = g.H > g.W;
+    g.taskbar = {0, g.H - 30, g.W, 30};
+    g.tray = {g.W - 110, g.H - 30, 110, 30};
+    g.balloon = {g.W - 206, g.H - 92, 200, 62};  // body 52 tall + the tail down to the taskbar
+    // Without the photo, portrait leaves a strip of desktop (the Bliss hill) above the taskbar. With it, the photo
+    // window sits above Task Manager (portrait) or beside it, with the desktop showing below it (landscape).
+    const bool photo = settings.lcarsPhoto;
+    if (tall) {
+        g.photoWin = photo ? Rect{4, 4, 312, 158} : Rect{0, 0, 0, 0};
+        g.win = photo ? Rect{4, 166, 312, 280} : Rect{4, 4, 312, 396};
+    } else {
+        g.photoWin = photo ? Rect{310, 4, 166, 148} : Rect{0, 0, 0, 0};
+        g.win = photo ? Rect{4, 4, 302, 282} : Rect{6, 4, 468, 282};
+    }
+    g.photo = photo ? Rect{g.photoWin.x + 3, g.photoWin.y + 25, g.photoWin.w - 6, g.photoWin.h - 28} : Rect{0, 0, 0, 0};
+    g.narrow = g.win.w < 400;
+    const bool roomy = tall && !photo;  // tall rows and the process list
+    const int px = g.win.x + 13, pw = g.win.w - 26, gaugeW = 74, gap = 6, rowH = roomy ? 92 : 70;
+    int y = g.win.y + 64;  // tab page content
+    g.cpuGauge = {px, y, gaugeW, rowH};
+    g.cpuHist = {px + gaugeW + gap, y, pw - gaugeW - gap, rowH};
+    y += rowH + 4;
+    g.memGauge = {px, y, gaugeW, rowH};
+    g.memHist = {px + gaugeW + gap, y, pw - gaugeW - gap, rowH};
+    y += rowH + 4;
+    if (g.narrow) {
+        int half = (pw - gap) / 2;
+        g.disk = {px, y, half, 44};
+        g.net = {px + half + gap, y, pw - half - gap, 44};
+        g.procs = roomy ? Rect{px, y + 48, pw, 62} : Rect{0, 0, 0, 0};
+    } else {
+        int third = (pw - 2 * gap) / 3;
+        g.disk = {px, y, third, 44};
+        g.net = {px + third + gap, y, third, 44};
+        g.procs = {px + 2 * (third + gap), y, pw - 2 * (third + gap), 44};
+    }
+    return g;
+}
+
+static bool xpActive() {
+    return settings.view == VIEW_DASHBOARD && settings.layout == LAYOUT_XP;
+}
+
+static const uint16_t XP_FACE = rgb(0xece9d8);          // window body ("button face")
+static const uint16_t XP_PAGE = rgb(0xfcfcfe);          // tab page
+static const uint16_t XP_TEXT = rgb(0x000000);
+static const uint16_t XP_TEXT2 = rgb(0x4d4d4d);
+static const uint16_t XP_FRAME = rgb(0x0a3fd0);         // window border
+static const uint16_t XP_TAB_BORDER = rgb(0x919b9c);
+static const uint16_t XP_GROUP_BORDER = rgb(0xd0d0bf);
+static const uint16_t XP_GROUP_TEXT = rgb(0x0046d5);    // group box captions are blue in Luna
+static const uint16_t XP_GOOD = rgb(0x2e9a2e);
+static const uint16_t XP_CRITICAL = rgb(0xd6301f);
+static const uint16_t TM_BLACK = rgb(0x000000);         // Task Manager graphs: green on black
+static const uint16_t TM_GRID = rgb(0x008040);
+static const uint16_t TM_LINE = rgb(0x00ff00);
+static const uint16_t TM_DIM = rgb(0x00591f);           // unlit LED segments
+
+static const uint32_t XP_TITLE[5] = {0x4a9bff, 0x0b64ef, 0x0058ee, 0x0055e5, 0x0047cc};
+static const uint32_t XP_BLUE_BUTTON[3] = {0x7aaeff, 0x2667ee, 0x1a55d8};
+static const uint32_t XP_RED_BUTTON[3] = {0xf3967a, 0xe0461d, 0xc03514};
+static const uint32_t XP_TAB[3] = {0xffffff, 0xf4f3ee, 0xe3e2da};
+static const uint32_t XP_TASKBAR[5] = {0x3c81f3, 0x2a6ae3, 0x245edb, 0x2156d0, 0x1941a5};
+static const uint32_t XP_START[4] = {0x6fc25a, 0x3c9a3c, 0x2f8a2f, 0x3f9e3a};
+static const uint32_t XP_TRAY[3] = {0x1fb5f6, 0x0e9be6, 0x0b7fd2};
+static const uint32_t XP_SKY[4] = {0x1f61d1, 0x3f86e2, 0x7fb3ec, 0xc4ddf5};
+
+// Color at row i of h of a vertical gradient through n evenly spaced stops.
+static uint16_t xpGradColor(const uint32_t *stops, int n, int i, int h) {
+    int t = h > 1 ? i * (n - 1) * 256 / (h - 1) : 0;
+    int seg = min(t >> 8, n - 2), f = t - seg * 256;
+    uint32_t a = stops[seg], b = stops[seg + 1], c = 0;
+    for (int s = 0; s <= 16; s += 8) {
+        int ca = (a >> s) & 0xff, cb = (b >> s) & 0xff;
+        c |= (uint32_t)(ca + (cb - ca) * f / 256) << s;
+    }
+    return rgb(c);
+}
+
+// How far row i (0 = the edge row) of a corner of radius rad sits in from the side.
+static int xpInset(int i, int rad) {
+    if (i >= rad) return 0;
+    float d = rad - i - 0.5f;
+    return rad - (int)sqrtf(rad * rad - d * d);
+}
+
+// Gradient-filled shape: top corners of radius rTop, bottom corners rBottom; the left side is square if !roundLeft.
+static void xpFill(int x, int y, int w, int h, const uint32_t *stops, int n, int rTop, int rBottom,
+                   bool roundLeft = true) {
+    for (int i = 0; i < h; i++) {
+        int inset = max(xpInset(i, rTop), xpInset(h - 1 - i, rBottom));
+        int left = roundLeft ? inset : 0;
+        canvas.fillRect(x + left, y + i, w - left - inset, 1, xpGradColor(stops, n, i, h));
+    }
+}
+
+// Bliss: blue sky with a few clouds over the green hill.
+static void xpDesktop(const XpGeom &g) {
+    const int W = g.W, H = g.taskbar.y, top = H - (g.H > g.W ? 44 : 50);
+    xpFill(0, 0, W, H, XP_SKY, 4, 0, 0);
+    const uint16_t cloud = rgb(0xf2f7fd);
+    const int CLOUDS[][3] = {{W * 7 / 10, top - 8, 9}, {W * 7 / 10 + 12, top - 12, 11}, {W * 7 / 10 + 26, top - 7, 8},
+                             {W / 6, top - 4, 6}, {W / 6 + 9, top - 7, 8}};
+    for (auto &c : CLOUDS) canvas.fillCircle(c[0], c[1], c[2], cloud);
+    canvas.fillRect(W * 7 / 10 - 4, top - 6, 34, 7, cloud);
+    // The hill: a parabola cresting left of center, a lit rim, then darker bands of grass.
+    static const uint16_t GRASS[5] = {rgb(0x9bdc5e), rgb(0x6cc04a), rgb(0x52ab33), rgb(0x3f9624), rgb(0x2f7d18)};
+    for (int x = 0; x < W; x++) {
+        float t = constrain((x - W * 0.4f) / (W * 0.6f), -1.0f, 1.0f);
+        int crest = top + (int)((H - top) * 0.6f * t * t);
+        int y = crest;
+        for (int b = 0; b < 5 && y < H; b++) {
+            int bh = b == 0 ? 2 : b == 4 ? H - y : 6 + b * 2;
+            canvas.fillRect(x, y, 1, bh, GRASS[b]);
+            y += bh;
+        }
+    }
+}
+
+// Little Task Manager icon: a monitor with a green graph.
+static void xpTmIcon(int x, int y) {
+    canvas.fillRect(x, y, 14, 12, rgb(0xd8e4f8));
+    canvas.fillRect(x + 1, y + 1, 12, 10, TM_BLACK);
+    canvas.drawLine(x + 2, y + 8, x + 5, y + 4, TM_LINE);
+    canvas.drawLine(x + 5, y + 4, x + 8, y + 7, TM_LINE);
+    canvas.drawLine(x + 8, y + 7, x + 11, y + 2, TM_LINE);
+    canvas.fillRect(x + 4, y + 12, 6, 2, rgb(0x9fb4d8));
+}
+
+// Little picture icon: sky, sun and a green hill.
+static void xpPictureIcon(int x, int y) {
+    canvas.fillRect(x, y, 14, 12, rgb(0xffffff));
+    canvas.fillRect(x + 1, y + 1, 12, 10, rgb(0x5aa0f0));
+    canvas.fillCircle(x + 9, y + 4, 2, rgb(0xffd23c));
+    canvas.fillRect(x + 1, y + 8, 12, 3, rgb(0x52ab33));
+    canvas.fillRect(x + 1, y + 7, 6, 1, rgb(0x52ab33));
+}
+
+// Minimize / maximize / close caption button (paler on an inactive window).
+static void xpCaptionButton(int x, int y, int kind, bool active) {
+    static const uint32_t PALE_BLUE[3] = {0xc4d6f6, 0x99b2ea, 0x8aa5e4}, PALE_RED[3] = {0xf3c0ae, 0xe49a80, 0xd88468};
+    const uint16_t white = rgb(0xffffff);
+    const uint32_t *stops = kind == 2 ? (active ? XP_RED_BUTTON : PALE_RED) : (active ? XP_BLUE_BUTTON : PALE_BLUE);
+    xpFill(x, y, 21, 21, stops, 3, 3, 3);
+    canvas.drawRoundRect(x, y, 21, 21, 3, white);
+    if (kind == 0) canvas.fillRect(x + 5, y + 13, 7, 3, white);
+    else if (kind == 1) {
+        canvas.drawRect(x + 5, y + 5, 11, 11, white);
+        canvas.fillRect(x + 5, y + 5, 11, 3, white);
+    } else {
+        for (int k = 0; k < 2; k++) {
+            canvas.drawLine(x + 6 + k, y + 6, x + 13 + k, y + 14, white);
+            canvas.drawLine(x + 13 + k, y + 6, x + 6 + k, y + 14, white);
+        }
+    }
+}
+
+// Group box: etched rounded border with a blue caption breaking the top edge.
+static void xpGroup(Rect r, const char *caption) {
+    canvas.drawRoundRect(r.x, r.y + 4, r.w, r.h - 4, 3, XP_GROUP_BORDER);
+    canvas.setStyle(1);
+    canvas.fillRect(r.x + 5, r.y, strlen(caption) * 6 + 5, 9, XP_PAGE);
+    canvas.setTextColor(XP_GROUP_TEXT);
+    canvas.cursor(r.x + 8, r.y);
+    canvas.print(caption);
+}
+
+// "CPU Usage" / "Mem Usage": a black box with a two-column LED bar lit from the bottom and the value under it.
+static void xpGauge(Rect r, const char *caption, float pct, const char *label) {
+    xpGroup(r, caption);
+    Rect in = {r.x + 10, r.y + 13, r.w - 20, r.h - 19};
+    canvas.fillRect(in.x, in.y, in.w, in.h, TM_BLACK);
+    const int bottom = in.y + in.h - 13, rows = (bottom - in.y - 4) / 3, cx = in.x + in.w / 2;
+    const int lit = (int)(constrain(pct, 0.0f, 100.0f) / 100.0f * rows + 0.5f);
+    for (int i = 0; i < rows; i++) {
+        int y = bottom - (i + 1) * 3 + 1;
+        uint16_t c = i < lit ? TM_LINE : TM_DIM;
+        canvas.fillRect(cx - 13, y, 12, 2, c);
+        canvas.fillRect(cx + 1, y, 12, 2, c);
+    }
+    canvas.setStyle(1);
+    canvas.setTextColor(TM_LINE);
+    printCentered(label, cx, in.y + in.h - 10);
+}
+
+// History pane: green grid that scrolls with the data, series s of p as a green line, and a label.
+static void xpHistory(Rect r, const Panel &p, int s, const char *label) {
+    const int cell = 12, step = 2;
+    canvas.fillRect(r.x, r.y, r.w, r.h, TM_BLACK);
+    for (int y = r.y + r.h - 1; y > r.y; y -= cell) canvas.drawFastHLine(r.x, y, r.w, TM_GRID);
+    for (int x = r.x + r.w - 1 - (p.count * step) % cell; x >= r.x; x -= cell) canvas.drawFastVLine(x, r.y, r.h, TM_GRID);
+    int shown = min(r.w / step + 1, p.count), prevX = -1, prevY = 0;
+    for (int i = shown - 1; i >= 0; i--) {
+        float v = constrain(histAt(p, s, i), 0.0f, 100.0f);
+        int px = r.x + r.w - 1 - i * step, py = r.y + r.h - 1 - (int)(v / 100.0f * (r.h - 2));
+        if (prevX >= 0) canvas.drawLine(prevX, prevY, px, py, TM_LINE);
+        prevX = px;
+        prevY = py;
+    }
+    canvas.setStyle(1);
+    canvas.setTextColor(TM_LINE);
+    canvas.cursor(r.x + 3, r.y + 3);
+    canvas.print(label);
+}
+
+// Totals-style box: up to 3 "key ... value" lines; a line with an empty value shows just the key (fitted).
+static void xpTotals(Rect r, const char *caption, const char *const keys[3], const char *const vals[3]) {
+    xpGroup(r, caption);
+    canvas.setStyle(1);
+    canvas.setTextColor(XP_TEXT);
+    for (int i = 0; i < 3; i++) {
+        int y = r.y + 13 + i * 10;
+        canvas.cursor(r.x + 8, y);
+        printFit(keys[i], vals[i][0] ? r.w / 2 : r.w - 16);
+        if (vals[i][0]) printRight(vals[i], r.x + r.w - 8, y);
+    }
+}
+
+// Portrait: the top 3 processes as a small Processes-tab list.
+static void xpProcList(Rect r) {
+    xpGroup(r, "Processes");
+    canvas.setStyle(1);
+    const int cpuRight = r.x + r.w - 56, memRight = r.x + r.w - 8;
+    canvas.setTextColor(XP_TEXT2);
+    canvas.cursor(r.x + 8, r.y + 13);
+    canvas.print("Image Name");
+    printRight("CPU", cpuRight, r.y + 13);
+    printRight("Mem", memRight, r.y + 13);
+    canvas.drawFastHLine(r.x + 6, r.y + 23, r.w - 12, XP_GROUP_BORDER);
+    canvas.setTextColor(XP_TEXT);
+    for (int i = 0; i < 3 && i < metrics.numProcs; i++) {
+        const Proc &p = metrics.procs[i];
+        int y = r.y + 27 + i * 10;
+        char buf[12];
+        canvas.cursor(r.x + 8, y);
+        printFit(p.name, cpuRight - 40 - r.x - 8);
+        snprintf(buf, sizeof(buf), "%.1f %%", p.cpu);
+        printRight(buf, cpuRight, y);
+        snprintf(buf, sizeof(buf), "%.1f %%", p.mem);
+        printRight(buf, memRight, y);
+    }
+}
+
+// Window chrome: title bar (rounded top corners; pale when inactive), icon, caption, buttons, frame and body.
+static void xpFrame(Rect w, const char *title, bool active, void (*icon)(int, int)) {
+    static const uint32_t INACTIVE[3] = {0xa5bff0, 0x7d9ae2, 0x7390dc};
+    if (active) xpFill(w.x, w.y, w.w, 25, XP_TITLE, 5, 7, 0);
+    else xpFill(w.x, w.y, w.w, 25, INACTIVE, 3, 7, 0);
+    const uint16_t frame = active ? XP_FRAME : rgb(0x7390dc);
+    canvas.fillRect(w.x, w.y + 25, 3, w.h - 25, frame);
+    canvas.fillRect(w.x + w.w - 3, w.y + 25, 3, w.h - 25, frame);
+    canvas.fillRect(w.x, w.y + w.h - 3, w.w, 3, frame);
+    canvas.fillRect(w.x + 3, w.y + 25, w.w - 6, w.h - 28, XP_FACE);
+    icon(w.x + 7, w.y + 5);
+    const int buttons = w.w < 200 ? 1 : 3;  // a small window keeps just the close button, for the caption's sake
+    const int minX = w.x + w.w - 26 - (buttons - 1) * 23, textW = minX - 8 - (w.x + 27);
+    canvas.setStyle(2);
+    if (active) {
+        canvas.setTextColor(rgb(0x0a246a));
+        canvas.cursor(w.x + 27, w.y + 7);
+        printFit(title, textW);
+    }
+    canvas.setTextColor(active ? rgb(0xffffff) : rgb(0xdfe8f8));
+    canvas.cursor(w.x + 26, w.y + 6);
+    printFit(title, textW);
+    for (int k = 0; k < buttons; k++) xpCaptionButton(minX + k * 23, w.y + 2, k + 3 - buttons, active);
+}
+
+// The photo window; the picture itself is fetched into g.photo separately (see drawMixedPhoto).
+static void xpPhotoWindow(const XpGeom &g) {
+    if (g.photo.w > 0) xpFrame(g.photoWin, "My Pictures", false, xpPictureIcon);
+}
+
+static void xpWindow(const XpGeom &g) {
+    const Rect w = g.win;
+    const bool tall = g.narrow;  // the compact text variants
+    xpFrame(w, tall ? "Task Manager" : "Windows Task Manager", true, xpTmIcon);
+    // Menu row.
+    canvas.setStyle(1);
+    canvas.setTextColor(XP_TEXT);
+    canvas.cursor(w.x + 9, w.y + 29);
+    canvas.print("File  Options  View  Shut Down  Help");
+    // Tab page with the Performance tab selected.
+    const int statusY = w.y + w.h - 19;
+    const Rect page = {w.x + 7, w.y + 58, w.w - 14, statusY - 2 - (w.y + 58)};
+    canvas.fillRect(page.x, page.y, page.w, page.h, XP_PAGE);
+    canvas.drawRect(page.x, page.y, page.w, page.h, XP_TAB_BORDER);
+    static const char *const TABS[4] = {"Applications", "Processes", "Performance", "Networking"};
+    const int pad = w.w < 310 ? 6 : tall ? 8 : 14;
+    for (int i = 0, tx = page.x + 2; i < 4; i++) {
+        const bool sel = i == 2;
+        const int tw = strlen(TABS[i]) * 6 + pad, ty = sel ? w.y + 39 : w.y + 41, th = sel ? 20 : 17;
+        if (sel) {
+            canvas.fillRect(tx - 2, ty, tw + 4, th, XP_PAGE);
+            canvas.fillRect(tx - 1, ty, tw + 2, 1, rgb(0xe68b2c));
+            canvas.fillRect(tx - 2, ty + 1, tw + 4, 2, rgb(0xffc73c));
+            canvas.drawFastVLine(tx - 2, ty + 3, th - 3, XP_TAB_BORDER);
+            canvas.drawFastVLine(tx + tw + 1, ty + 3, th - 3, XP_TAB_BORDER);
+        } else {
+            xpFill(tx, ty, tw, th, XP_TAB, 3, 2, 0);
+            canvas.drawFastHLine(tx + 2, ty, tw - 4, XP_TAB_BORDER);
+            canvas.drawFastVLine(tx, ty + 2, th - 2, XP_TAB_BORDER);
+            canvas.drawFastVLine(tx + tw - 1, ty + 2, th - 2, XP_TAB_BORDER);
+        }
+        canvas.setTextColor(XP_TEXT);
+        canvas.cursor(tx + pad / 2, ty + (sel ? 7 : 5));
+        canvas.print(TABS[i]);
+        tx += tw;
+    }
+    // Performance tab contents.
+    char cpuLabel[12], memLabel[12], buf[32];
+    snprintf(cpuLabel, sizeof(cpuLabel), "%.0f %%", metrics.cpu);
+    snprintf(memLabel, sizeof(memLabel), metrics.ramUsed < 100 ? "%.1f GB" : "%.0f GB", metrics.ramUsed);
+    xpGauge(g.cpuGauge, "CPU Usage", metrics.cpu, cpuLabel);
+    xpGauge(g.memGauge, "Mem Usage", metrics.ram, memLabel);
+    Rect h = g.cpuHist;
+    xpGroup(h, "CPU Usage History");
+    const int paneW = (h.w - 12 - 4) / 2;
+    snprintf(buf, sizeof(buf), "CPU %.0f%%", metrics.cpu);
+    xpHistory({h.x + 6, h.y + 13, paneW, h.h - 19}, cpuPanel, 0, buf);
+    snprintf(buf, sizeof(buf), "GPU %.0f%%", metrics.gpu);
+    xpHistory({h.x + 10 + paneW, h.y + 13, h.w - 16 - paneW, h.h - 19}, cpuPanel, 1, buf);
+    h = g.memHist;
+    xpGroup(h, "Memory Usage History");
+    snprintf(buf, sizeof(buf), "RAM %.0f%%", metrics.ram);
+    xpHistory({h.x + 6, h.y + 13, h.w - 12, h.h - 19}, ramPanel, 0, buf);
+    char v[3][16];
+    snprintf(v[0], 16, "%.1f MB/s", metrics.diskRead);
+    snprintf(v[1], 16, "%.1f MB/s", metrics.diskWrite);
+    snprintf(v[2], 16, "%.0f %%", metrics.disk);
+    static const char *const DISK[3] = {"Read", "Write", "Used"};
+    const char *const dv[3] = {v[0], v[1], v[2]};
+    xpTotals(g.disk, "Disk", DISK, dv);
+    formatRate(v[0], 16, metrics.netRx);
+    formatRate(v[1], 16, metrics.netTx);
+    formatRate(v[2], 16, metrics.netRx + metrics.netTx);
+    static const char *const NET[3] = {"Received", "Sent", "Total"};
+    xpTotals(g.net, "Network", NET, dv);
+    if (g.procs.w == 0) {
+    } else if (g.H > g.W) xpProcList(g.procs);
+    else {
+        const bool any = metrics.numProcs > 0;
+        snprintf(v[1], 16, "%.1f %%", any ? metrics.procs[0].cpu : 0.0f);
+        snprintf(v[2], 16, "%.1f %%", any ? metrics.procs[0].mem : 0.0f);
+        const char *const keys[3] = {any ? metrics.procs[0].name : "-", "CPU", "Mem"};
+        const char *const vals[3] = {"", v[1], v[2]};
+        xpTotals(g.procs, "Top Process", keys, vals);
+    }
+    // Status bar: link | CPU usage | commit charge, in sunken sections.
+    canvas.setStyle(1);
+    const int secs[3] = {w.x + 3, w.x + 95, w.x + 193};
+    for (int k = 1; k < 3; k++) {
+        canvas.drawFastVLine(secs[k] - 3, statusY + 3, 12, rgb(0xaca899));
+        canvas.drawFastVLine(secs[k] - 2, statusY + 3, 12, rgb(0xffffff));
+    }
+    canvas.fillCircle(secs[0] + 8, statusY + 8, 3, stale ? XP_CRITICAL : XP_GOOD);
+    canvas.setTextColor(XP_TEXT);
+    canvas.cursor(secs[0] + 15, statusY + 5);
+    canvas.print(stale ? (samples ? "No host data" : "Waiting") : "Connected");
+    snprintf(buf, sizeof(buf), "CPU Usage: %.0f%%", metrics.cpu);
+    canvas.cursor(secs[1] + 4, statusY + 5);
+    canvas.print(buf);
+    snprintf(buf, sizeof(buf), tall ? "Mem: %.1fG/%.0fG" : "Commit Charge: %.1fG / %.0fG", metrics.ramUsed,
+             metrics.ramTotal);
+    canvas.cursor(secs[2] + 4, statusY + 5);
+    canvas.print(buf);
+}
+
+// Taskbar: start button, the Task Manager task button (pressed), and the tray with the link icon and the clock
+// (or the timer/stopwatch).
+static void xpTaskbar(const XpGeom &g) {
+    const Rect t = g.taskbar, tr = g.tray;
+    const bool tall = g.H > g.W;
+    xpFill(t.x, t.y, t.w, t.h, XP_TASKBAR, 5, 0, 0);
+    const int startW = tall ? 92 : 98;
+    xpFill(0, t.y, startW, t.h, XP_START, 4, 12, 12, false);
+    // Windows flag: four tiles.
+    static const uint16_t FLAG[4] = {rgb(0xf25022), rgb(0x7fba00), rgb(0x00a4ef), rgb(0xffb900)};
+    for (int k = 0; k < 4; k++) canvas.fillRect(9 + (k % 2) * 8, t.y + 7 + (k / 2) * 8, 7, 7, FLAG[k]);
+    canvas.setStyle(3);
+    canvas.setTextColor(rgb(0x1e5a1e));
+    canvas.cursor(29, t.y + 8);
+    canvas.print("start");
+    canvas.setTextColor(rgb(0xffffff));
+    canvas.cursor(28, t.y + 7);
+    canvas.print("start");
+    // Task button.
+    const int bx = startW + 6, bw = tr.x - 6 - bx > 150 ? 150 : tr.x - 6 - bx;
+    canvas.fillRoundRect(bx, t.y + 3, bw, t.h - 6, 3, rgb(0x1e4fb5));
+    canvas.drawRoundRect(bx, t.y + 3, bw, t.h - 6, 3, rgb(0x163f99));
+    canvas.drawFastHLine(bx + 2, t.y + 4, bw - 4, rgb(0x163f99));
+    xpTmIcon(bx + 6, t.y + 8);
+    canvas.setStyle(1);
+    canvas.setTextColor(rgb(0xffffff));
+    canvas.cursor(bx + 26, t.y + 11);
+    printFit("Task Manager", bw - 30);
+    // Tray.
+    const bool flash = timerDone() && (millis() / 500) % 2;
+    if (flash) canvas.fillRect(tr.x, tr.y, tr.w, tr.h, XP_CRITICAL);
+    else xpFill(tr.x, tr.y, tr.w, tr.h, XP_TRAY, 3, 0, 0);
+    canvas.drawFastVLine(tr.x, tr.y, tr.h, rgb(0x0f5fb9));
+    canvas.drawFastVLine(tr.x + 1, tr.y, tr.h, rgb(0x5cc8fa));
+    // Network icon: two monitors; a red X when the host link is down.
+    const int ix = tr.x + 8, iy = t.y + 9;
+    for (int k = 0; k < 2; k++) {
+        int mx = ix + k * 5, my = iy + (1 - k) * 4;
+        canvas.fillRect(mx, my, 8, 7, rgb(0xffffff));
+        canvas.fillRect(mx + 1, my + 1, 6, 4, rgb(0x2a7de1));
+        canvas.fillRect(mx + 3, my + 7, 2, 2, rgb(0xffffff));
+    }
+    if (stale) {
+        canvas.fillCircle(ix + 11, iy + 10, 4, XP_CRITICAL);
+        canvas.drawLine(ix + 9, iy + 8, ix + 13, iy + 12, rgb(0xffffff));
+        canvas.drawLine(ix + 13, iy + 8, ix + 9, iy + 12, rgb(0xffffff));
+    }
+    char text[12];
+    if (timerMode() != TM_NONE) formatTimer(text, sizeof(text));
+    else if (clockValid()) strlcpy(text, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(text));
+    else strcpy(text, "--:--");
+    char *s = text;
+    while (*s == ' ') s++;
+    canvas.setStyle(2);
+    canvas.setTextColor(timerMode() != TM_NONE && !timerRunning() && !timerDone() ? rgb(0xbcd9f5) : rgb(0xffffff));
+    printRight(s, tr.x + tr.w - 7, t.y + 9);
+}
+
+// Notification balloon over the tray when a timer finishes (tap it, or the tray, to dismiss).
+static void xpBalloon(const XpGeom &g) {
+    const Rect b = g.balloon;
+    const uint16_t fill = rgb(0xffffe1), edge = rgb(0x000000);
+    const int bh = 52, tipX = g.tray.x + g.tray.w - 40;
+    canvas.fillRoundRect(b.x, b.y, b.w, bh, 7, fill);
+    canvas.drawRoundRect(b.x, b.y, b.w, bh, 7, edge);
+    canvas.fillTriangle(tipX - 14, b.y + bh - 1, tipX, b.y + bh - 1, tipX, b.y + b.h - 1, fill);
+    canvas.drawLine(tipX - 14, b.y + bh - 1, tipX, b.y + b.h - 1, edge);
+    canvas.drawLine(tipX, b.y + bh - 1, tipX, b.y + b.h - 1, edge);
+    canvas.fillCircle(b.x + 14, b.y + 14, 7, rgb(0x2a6fdc));
+    canvas.setStyle(1);
+    canvas.setTextColor(rgb(0xffffff));
+    canvas.cursor(b.x + 12, b.y + 10);
+    canvas.print("i");
+    canvas.setStyle(2);
+    canvas.setTextColor(XP_TEXT);
+    canvas.cursor(b.x + 28, b.y + 8);
+    canvas.print("Timer");
+    canvas.drawRect(b.x + b.w - 17, b.y + 5, 12, 12, rgb(0xaca899));
+    canvas.drawLine(b.x + b.w - 14, b.y + 8, b.x + b.w - 9, b.y + 13, XP_TEXT2);
+    canvas.drawLine(b.x + b.w - 9, b.y + 8, b.x + b.w - 14, b.y + 13, XP_TEXT2);
+    canvas.setStyle(1);
+    canvas.setTextColor(XP_TEXT);
+    canvas.cursor(b.x + 10, b.y + 28);
+    canvas.print("Time's up!");
+    canvas.cursor(b.x + 10, b.y + 39);
+    canvas.print("Tap here to dismiss.");
+}
+
+static void drawXpScene(const XpGeom &g) {
+    xpDesktop(g);
+    xpPhotoWindow(g);
+    xpWindow(g);
+    xpTaskbar(g);
+    if (timerDone()) xpBalloon(g);
+}
+
+// Everything except the photo (fetched separately, so samples don't reload it): the screen in up to four
+// rectangles around it.
+static void drawXp() {
+    XpGeom g = xpGeom();
+    const Rect p = g.photo;
+    auto scene = [&] { drawXpScene(g); };
+    if (p.w == 0) {
+        renderRegion(0, 0, g.W, g.H, scene);
+        return;
+    }
+    if (p.y > 0) renderRegion(0, 0, g.W, p.y, scene);
+    renderRegion(0, p.y, p.x, p.h, scene);
+    if (p.x + p.w < g.W) renderRegion(p.x + p.w, p.y, g.W - p.x - p.w, p.h, scene);
+    renderRegion(0, p.y + p.h, g.W, g.H - p.y - p.h, scene);
+}
+
+// The tray and the balloon area above it (so a dismissed balloon is painted over).
+static void drawXpTray() {
+    XpGeom g = xpGeom();
+    Rect b = g.balloon;
+    renderRegion(b.x, b.y, g.W - b.x, g.H - b.y, [&] { drawXpScene(g); });
+}
+
 // ---- Layouts ----
 // Focus layout geometry: the main panel, then a row of 3 mini tiles (tap one to focus it).
 struct FocusGeom {
@@ -853,6 +1358,10 @@ void drawDashboard() {
     }
     if (settings.layout == LAYOUT_TRON) {
         drawTron();
+        return;
+    }
+    if (settings.layout == LAYOUT_XP) {
+        drawXp();
         return;
     }
     switch (settings.layout) {
@@ -904,6 +1413,10 @@ void drawDashboardStatus() {
         drawTron();
         return;
     }
+    if (settings.layout == LAYOUT_XP) {
+        drawXp();
+        return;
+    }
     int y = tableGeom().y;
     renderRegion(0, y, TABLE_W, TABLE_HEADER_H, [&] { drawTableHeader(y); });
     drawClock();
@@ -912,7 +1425,7 @@ void drawDashboardStatus() {
 bool mixedTap(int x, int y);
 
 bool dashboardTap(int x, int y) {
-    if (settings.layout == LAYOUT_LCARS) return mixedTap(x, y);  // tap the photo for the next one
+    if (settings.layout == LAYOUT_LCARS || settings.layout == LAYOUT_XP) return mixedTap(x, y);  // next photo
     FocusGeom g = focusGeom();
     if (settings.layout != LAYOUT_FOCUS || y < g.tileY || y >= g.tileY + g.tileH) return false;
     int others[3];
@@ -964,9 +1477,10 @@ static void roundCorners(int x, int y, int w, int h, int r) {
 
 static void photoMessage(Rect p, const char *text) {
     renderRegion(p.x, p.y, p.w, p.h, [&] {
-        card(p.x, p.y, p.w, p.h);
+        if (xpActive()) canvas.fillRect(p.x, p.y, p.w, p.h, XP_PAGE);  // the window's content area
+        else card(p.x, p.y, p.w, p.h);
         canvas.setStyle(1);
-        canvas.setTextColor(theme.text2);
+        canvas.setTextColor(xpActive() ? XP_TEXT2 : theme.text2);
         printCentered(text, p.x + p.w / 2, p.y + p.h / 2 - 4);
     });
 }
@@ -975,6 +1489,7 @@ static void photoMessage(Rect p, const char *text) {
 static Rect photoSlot() {
     if (settings.view == VIEW_MIXED) return mixGeom().photo;
     if (lcarsActive() && settings.lcarsPhoto) return lcarsGeom().photo;
+    if (xpActive()) return xpGeom().photo;
     return {0, 0, 0, 0};
 }
 
@@ -988,6 +1503,12 @@ static void drawMixedPhoto() {
         return;
     }
     int count;
+    if (xpActive()) {  // XP: the picture fills the window's client area; the window frame is its border
+        bool ok = fetchPicture(settings.folder, mixedIndex, p.x, p.y, p.w, p.h, count);
+        mixedCount = count;
+        if (count == 0 || !ok) photoMessage(p, count == 0 ? "no pictures yet" : "picture failed");
+        return;
+    }
     // 2px gap like the cards, then round the corners to match them.
     bool ok = fetchPicture(settings.folder, mixedIndex, p.x + 2, p.y + 2, p.w - 4, p.h - 4, count);
     mixedCount = count;
@@ -1100,6 +1621,7 @@ static bool inRect(Rect r, int x, int y) {
 bool timerAreaHit(int x, int y) {
     if (lcarsActive()) return inRect(lcarsGeom().timeBox, x, y);
     if (tronActive()) return inRect(tronGeom().term, x, y);
+    if (xpActive()) return inRect(xpGeom().tray, x, y) || (timerDone() && inRect(xpGeom().balloon, x, y));
     if (settings.view == VIEW_DASHBOARD) return inRect(clockRect(), x, y);
     if (settings.view == VIEW_MIXED) return inRect(mixGeom().clock, x, y);
     return albumBadgeHit(x, y);
@@ -1108,6 +1630,7 @@ bool timerAreaHit(int x, int y) {
 void drawTimerTick() {
     if (lcarsActive()) drawLcarsTimeOnly();
     else if (tronActive()) drawTronTermOnly();
+    else if (xpActive()) drawXpTray();
     else if (settings.view == VIEW_DASHBOARD) drawClock();
     else if (settings.view == VIEW_MIXED) drawMixedClock();
     else drawClockBadge();

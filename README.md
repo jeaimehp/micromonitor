@@ -24,7 +24,7 @@ from the display's memory:
 
 A Star Trek–style screen: the elbow frame and sidebar (with disk, network, I/O and top-process readouts), the time,
 date and a "stardate", CPU/GPU and memory gauges, and an optional slideshow photo (tap it for the next one; turn it off
-under More → *photo in LCARS layout*, or µMonitor **Display → Photo in LCARS Layout**). Pick it with **Theme → LCARS**.
+under More → *photo in LCARS/XP layout*, or µMonitor **Display → Photo in LCARS / XP Layout**). Pick it with **Theme → LCARS**.
 
 | Landscape with photo | Landscape, no photo | Portrait |
 |---|---|---|
@@ -41,13 +41,26 @@ status), in glowing pixel text with pale window chrome. A running timer shows in
 |---|---|
 | ![Tron landscape](docs/images/tron_landscape.png) | ![Tron portrait](docs/images/tron_portrait.png) |
 
+### Windows XP theme
+
+Windows XP's Task Manager, Performance tab, on the Bliss desktop: CPU and memory LED meters, green-on-black CPU, GPU
+and memory history graphs that scroll like the real ones, disk, network and top-process totals, and a status bar with
+the link status and commit charge. The taskbar has the start button and a tray with the network icon and the clock. A
+running timer shows in the tray, and when it finishes a notification balloon pops up (tap it to dismiss). The layout
+photo (the same setting as LCARS) opens in its own *My Pictures* window; tap it for the next one. Pick it with
+**Theme → Windows XP**.
+
+| Landscape | Landscape with photo | Portrait with photo |
+|---|---|---|
+| ![XP landscape](docs/images/xp_landscape.png) | ![XP with photo](docs/images/xp_photo.png) | ![XP portrait](docs/images/xp_portrait.png) |
+
 ## Features
 
 - **Live graphs**, refreshed every 2 seconds: CPU and GPU utilization, RAM, disk read/write and usage, network rx/tx
 - **Top 5 processes** with CPU and memory, plus a **date/time tile**
-- **6 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
-  **LCARS** and **Tron** (see below)
-- **10 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, Tron, High Contrast
+- **7 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
+  **LCARS**, **Tron** and **XP** (see below)
+- **11 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, Tron, Windows XP, High Contrast
   (colorblind-safe graph colors)
 - **Album view**: a slideshow of your photos or the built-in pixel-art "motivation" cards; tap the edges for
   previous/next; optional clock badge
