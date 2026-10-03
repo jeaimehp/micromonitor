@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Mirrors of the device menu; the device reports each setting as the index of its option.
 VIEWS = ["Dashboard", "Album", "Mixed"]
-LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles", "LCARS", "Tron", "XP"]
+LAYOUTS = ["Quad", "Stacked", "Focus", "Tiles", "LCARS", "Tron", "XP", "System 7"]
 FOLDERS = ["Photos", "Motivation"]
 SLIDES = ["Every 5 seconds", "Every 10 seconds", "Every 30 seconds", "Every minute", "Every 5 minutes",
           "Every 30 minutes"]
@@ -76,7 +76,7 @@ class DashboardApp(rumps.App):
         self.display.add(self.theme_menu)
         self.badge_item = rumps.MenuItem("Clock on Pictures", callback=self.toggle_badge)
         self.display.add(self.badge_item)
-        self.lphoto_item = rumps.MenuItem("Photo in LCARS / XP Layout",
+        self.lphoto_item = rumps.MenuItem("Photo in LCARS / XP / System 7 Layout",
                                           callback=lambda item: self.send(f"lphoto {0 if item.state else 1}"))
         self.display.add(self.lphoto_item)
         self.display.add(None)

@@ -279,6 +279,14 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
 - Hold (user request): "cmd hold 0|1" (toggle without a value) sets a runtime photoHold (NOT saved across reboots); albumTick and
   mixedTick (also the LCARS photo) skip automatic advance while held; manual next/prev still work. state adds hold=.
   µMonitor: Pictures > Hold Current Photo (checkbox follows state) + Next Picture.
+- System 7 (user request): theme "System 7" (layout="system 7"; white cards on the #5a5aa0 desktop color; series validated on white).
+  LAYOUT_SYSTEM7 = index 7 ("System 7"). Fixed B&W palette (S7_* constants). s7Geom() (about/meter/finder/photoWin/photo/alert/clock;
+  4 arrangements: landscape/portrait x photo on/off), drawS7Scene() (dithered desktop via the new Canvas::fillPattern, menu bar
+  with the Apple bitmap + clock/timer, windows: About This Macintosh = active (pinstripes), CPU Meter / Macintosh HD / Photo inactive,
+  alert if timerDone, rounded screen corners). drawS7() renders around the photo; drawS7Tick() redraws the menu clock + the alert,
+  and when the alert goes away redraws everything and refetches the photo. The layout photo setting (lphoto) now covers
+  LCARS / XP / System 7. Full draw about 260ms. Theme indexes now: 9 Windows XP 10 System 7 11 High Contrast.
+  NOTE for uitest: send "cmd theme N" only after the device has loaded this checkout's themes (wait a few seconds first).
 - Windows XP (user request; then "add option for photos, should display as a window"): theme "Windows XP" (layout=xp; beige
   cards, Luna-blue separator, series #2a64d6/#d9622b validated on #ece9d8). LAYOUT_XP = index 6 ("XP"). The xp layout uses a FIXED
   Luna / Task Manager palette (XP_* / TM_* constants), not the theme. dashboard_view.cpp: xpGeom() (win, photoWin/photo, taskbar,
@@ -286,8 +294,7 @@ and look at "probe done ... mounted X/10, full listing Y/10". It should be 10/10
   (desktop -> photo window -> Task Manager -> taskbar -> balloon if timerDone); drawXp() renders it around the photo rect (up to 4
   regions) so samples don't wipe the photo; drawXpTray() re-renders tray + balloon area (timer tick / dismiss). The photo reuses
   settings.lcarsPhoto ("lphoto"; menu caption "photo in LCARS/XP layout"); photoSlot() returns xpGeom().photo and drawMixedPhoto
-  fetches straight into it (no card gap / rounded corners). Full draw is about 410ms. Theme indexes now: ... 8 Tron 9 Windows XP
-  10 High Contrast.
+  fetches straight into it (no card gap / rounded corners). Full draw is about 410ms. Theme indexes: see System 7 below.
 - Tron (user request, from a Tron: Legacy still of Flynn's terminal): theme "Tron" (layout=tron; text #d8fbff, glow = button #14505a,
   chrome = accent #bff6ff; series #1ea0bc/#d9772e validated on black). LAYOUT_TRON = index 5 ("Tron"). dashboard_view.cpp:
   tronGeom() (landscape: top window 288 wide + terminal 188; portrait: top 262 tall + terminal 214), tronText() (native font

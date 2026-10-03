@@ -1333,6 +1333,414 @@ static void drawXpTray() {
     renderRegion(b.x, b.y, g.W - b.x, g.H - b.y, [&] { drawXpScene(g); });
 }
 
+// ---- System 7 layout: the classic Mac desktop ----
+// Menu bar (rainbow Apple, menus, clock or timer), a dithered desktop, and black-and-white windows: "About This
+// Macintosh" (memory + the top apps with bars, active), "CPU Meter" (CPU and GPU history), "Macintosh HD" (disk and
+// network as Finder icons) and, with the layout photo on, a "Photo" window. A finished timer shows an alert with an
+// OK button. Like XP, a fixed palette, one scene in absolute coordinates, rendered around the photo.
+struct S7Geom {
+    int W, H;
+    Rect about, meter, finder, photoWin, photo, alert, clock;
+};
+
+static S7Geom s7Geom() {
+    S7Geom g;
+    g.W = tft.width();
+    g.H = tft.height();
+    const bool photo = settings.lcarsPhoto, tall = g.H > g.W;
+    g.photoWin = g.photo = {0, 0, 0, 0};
+    if (tall) {
+        if (photo) {
+            g.photoWin = {6, 28, 308, 132};
+            g.meter = {6, 168, 308, 90};
+            g.about = {6, 266, 308, 120};
+            g.finder = {6, 394, 307, 80};
+        } else {
+            g.meter = {6, 28, 308, 130};
+            g.about = {6, 166, 308, 196};
+            g.finder = {6, 370, 308, 104};
+        }
+        g.alert = {30, 190, 260, 100};
+    } else {
+        g.meter = {296, 28, 178, 140};
+        if (photo) {
+            g.about = {6, 28, 282, 170};
+            g.finder = {6, 206, 282, 106};
+            g.photoWin = {296, 176, 178, 136};
+        } else {
+            g.about = {6, 28, 282, 284};
+            g.finder = {296, 176, 178, 136};
+        }
+        g.alert = {110, 110, 260, 100};
+    }
+    if (photo) g.photo = {g.photoWin.x + 1, g.photoWin.y + 20, g.photoWin.w - 2, g.photoWin.h - 21};
+    g.clock = {g.W - 112, 0, 112, 20};
+    return g;
+}
+
+static bool s7Active() {
+    return settings.view == VIEW_DASHBOARD && settings.layout == LAYOUT_SYSTEM7;
+}
+
+static const uint16_t S7_WHITE = rgb(0xffffff);
+static const uint16_t S7_BLACK = rgb(0x000000);
+static const uint16_t S7_GREY = rgb(0x808080);
+static const uint16_t S7_LIGHT = rgb(0xc8c8c8);
+static const uint16_t S7_DESK0 = rgb(0x5a5aa0);  // desktop dither
+static const uint16_t S7_DESK1 = rgb(0x7878bc);
+
+// Content area of a window (inside the frame, under the title bar).
+static Rect s7Content(Rect r) {
+    return {r.x + 1, r.y + 20, r.w - 2, r.h - 21};
+}
+
+// Window: drop shadow, frame, title bar. Active: pinstripes, close and zoom boxes, black title; inactive: plain, grey.
+static void s7Window(Rect r, const char *title, bool active) {
+    canvas.fillRect(r.x + 1, r.y + r.h, r.w, 1, S7_BLACK);
+    canvas.fillRect(r.x + r.w, r.y + 1, 1, r.h, S7_BLACK);
+    canvas.fillRect(r.x, r.y, r.w, r.h, S7_WHITE);
+    canvas.drawRect(r.x, r.y, r.w, r.h, S7_BLACK);
+    canvas.drawFastHLine(r.x, r.y + 19, r.w, S7_BLACK);
+    canvas.setStyle(2);
+    int16_t bx, by;
+    uint16_t tw, th;
+    canvas.getTextBounds(title, 0, 0, &bx, &by, &tw, &th);
+    const int cx = r.x + r.w / 2;
+    if (active) {
+        for (int i = 0; i < 6; i++) canvas.drawFastHLine(r.x + 2, r.y + 4 + i * 2, r.w - 4, S7_BLACK);
+        const int boxY = r.y + 4, closeX = r.x + 9, zoomX = r.x + r.w - 20;
+        canvas.fillRect(closeX - 1, boxY - 1, 13, 13, S7_WHITE);
+        canvas.drawRect(closeX, boxY, 11, 11, S7_BLACK);
+        canvas.fillRect(zoomX - 1, boxY - 1, 13, 13, S7_WHITE);
+        canvas.drawRect(zoomX, boxY, 11, 11, S7_BLACK);
+        canvas.drawRect(zoomX, boxY, 7, 7, S7_BLACK);
+        canvas.fillRect(cx - tw / 2 - 6, r.y + 2, tw + 12, 16, S7_WHITE);
+    }
+    canvas.setTextColor(active ? S7_BLACK : S7_GREY);
+    printCentered(title, cx, r.y + 3);
+}
+
+// Native pixel font, emboldened by printing twice one pixel apart (close to Chicago at this size).
+static void s7Bold(int x, int y, const char *text, uint16_t color = S7_BLACK) {
+    canvas.setStyle(1);
+    canvas.setTextColor(color);
+    for (int k = 0; k < 2; k++) {
+        canvas.cursor(x + k, y);
+        canvas.print(text);
+    }
+}
+
+static void s7Text(int x, int y, const char *text, uint16_t color = S7_BLACK) {
+    canvas.setStyle(1);
+    canvas.setTextColor(color);
+    canvas.cursor(x, y);
+    canvas.print(text);
+}
+
+// The six-stripe Apple, 12x13.
+static void s7Apple(int x, int y) {
+    static const char *const ROWS[13] = {
+        ".......##...", "......##....", "..###..###..", ".##########.", "##########..", "#########...",
+        "#########...", "#########...", "##########..", "###########.", ".##########.", ".#########..",
+        "..###..###..",
+    };
+    static const uint16_t BANDS[13] = {rgb(0x61bb46), rgb(0x61bb46), rgb(0x61bb46), rgb(0x61bb46), rgb(0xfdb827),
+                                       rgb(0xfdb827), rgb(0xf5821f), rgb(0xf5821f), rgb(0xe03a3e), rgb(0xe03a3e),
+                                       rgb(0x963d97), rgb(0x963d97), rgb(0x009ddc)};
+    for (int j = 0; j < 13; j++)
+        for (int i = 0; i < 12; i++)
+            if (ROWS[j][i] == '#') canvas.drawPixel(x + i, y + j, BANDS[j]);
+}
+
+// Compact Macintosh icon (18x24): case, screen, floppy slot, foot.
+static void s7MacIcon(int x, int y) {
+    canvas.fillRoundRect(x, y, 18, 22, 2, rgb(0xeeeadc));
+    canvas.drawRoundRect(x, y, 18, 22, 2, S7_BLACK);
+    canvas.fillRect(x + 3, y + 3, 12, 9, S7_LIGHT);
+    canvas.drawRect(x + 3, y + 3, 12, 9, S7_BLACK);
+    canvas.drawFastHLine(x + 9, y + 16, 6, S7_BLACK);
+    canvas.fillRect(x + 1, y + 22, 16, 2, S7_BLACK);
+}
+
+// Small icons for the About list: an application diamond, and a memory chip.
+static void s7AppIcon(int x, int y) {
+    for (int i = 0; i <= 5; i++) {
+        canvas.drawFastHLine(x + 5 - i, y + i, 2 * i + 1, i == 5 ? S7_BLACK : S7_WHITE);
+        canvas.drawFastHLine(x + 5 - i, y + 10 - i, 2 * i + 1, S7_WHITE);
+    }
+    canvas.drawLine(x, y + 5, x + 5, y, S7_BLACK);
+    canvas.drawLine(x + 5, y, x + 10, y + 5, S7_BLACK);
+    canvas.drawLine(x + 10, y + 5, x + 5, y + 10, S7_BLACK);
+    canvas.drawLine(x + 5, y + 10, x, y + 5, S7_BLACK);
+    canvas.fillRect(x + 4, y + 4, 3, 3, S7_BLACK);
+}
+
+static void s7ChipIcon(int x, int y) {
+    canvas.fillRect(x + 1, y + 2, 10, 7, S7_BLACK);
+    for (int i = 0; i < 5; i++) {
+        canvas.drawPixel(x + 2 + i * 2, y, S7_BLACK);
+        canvas.drawPixel(x + 2 + i * 2, y + 1, S7_BLACK);
+        canvas.drawPixel(x + 2 + i * 2, y + 9, S7_BLACK);
+        canvas.drawPixel(x + 2 + i * 2, y + 10, S7_BLACK);
+    }
+}
+
+// About-box bar: outlined, filled black to frac.
+static void s7Bar(int x, int y, int w, int h, float frac) {
+    canvas.fillRect(x, y, w, h, S7_WHITE);
+    canvas.drawRect(x, y, w, h, S7_BLACK);
+    int fw = (int)(constrain(frac, 0.0f, 1.0f) * (w - 2));
+    if (fw > 0) canvas.fillRect(x + 1, y + 1, fw, h - 2, S7_BLACK);
+}
+
+static void s7MenuBar(const S7Geom &g) {
+    canvas.fillRect(0, 0, g.W, 20, S7_WHITE);
+    canvas.drawFastHLine(0, 19, g.W, S7_BLACK);
+    s7Apple(14, 3);
+    static const char *const MENUS[5] = {"File", "Edit", "View", "Label", "Special"};
+    const int count = g.H > g.W ? 3 : 5;
+    canvas.setStyle(2);
+    canvas.setTextColor(S7_BLACK);
+    int x = 42;
+    for (int i = 0; i < count; i++) {
+        int16_t bx, by;
+        uint16_t tw, th;
+        canvas.getTextBounds(MENUS[i], 0, 0, &bx, &by, &tw, &th);
+        canvas.cursor(x, 4);
+        canvas.print(MENUS[i]);
+        x += tw + 16;
+    }
+    // Clock (or the timer), then the application menu's Finder icon at the right end.
+    char text[12];
+    if (timerMode() != TM_NONE) formatTimer(text, sizeof(text));
+    else if (clockValid()) strlcpy(text, Time.format(Time.now(), "%l:%M %p").c_str(), sizeof(text));
+    else strcpy(text, "--:--");
+    char *s = text;
+    while (*s == ' ') s++;
+    canvas.setTextColor(timerMode() != TM_NONE && !timerRunning() && !timerDone() ? S7_GREY : S7_BLACK);
+    printRight(s, g.W - 34, 4);
+    const int ix = g.W - 26;
+    canvas.fillRect(ix, 3, 14, 14, rgb(0x9fb8ff));
+    canvas.fillRect(ix + 7, 3, 7, 14, rgb(0xd8e2ff));
+    canvas.drawRect(ix, 3, 14, 14, S7_BLACK);
+    canvas.drawFastVLine(ix + 7, 4, 9, S7_BLACK);
+    canvas.drawPixel(ix + 4, 7, S7_BLACK);
+    canvas.drawPixel(ix + 10, 7, S7_BLACK);
+    canvas.drawFastHLine(ix + 4, 12, 7, S7_BLACK);
+}
+
+// Rounded screen corners, as on the classic Mac's display.
+static void s7ScreenCorners(const S7Geom &g) {
+    const int r = 7;
+    for (int j = 0; j < r; j++) {
+        int in = xpInset(j, r);
+        canvas.fillRect(0, j, in, 1, S7_BLACK);
+        canvas.fillRect(g.W - in, j, in, 1, S7_BLACK);
+        canvas.fillRect(0, g.H - 1 - j, in, 1, S7_BLACK);
+        canvas.fillRect(g.W - in, g.H - 1 - j, in, 1, S7_BLACK);
+    }
+}
+
+static void s7About(const S7Geom &g) {
+    s7Window(g.about, "About This Macintosh", true);
+    const Rect c = s7Content(g.about);
+    char buf[40];
+    s7MacIcon(c.x + 10, c.y + 7);
+    s7Bold(c.x + 38, c.y + 6, "System Software 7.1");
+    snprintf(buf, sizeof(buf), "Total Memory: %.1f GB", metrics.ramTotal);
+    s7Text(c.x + 38, c.y + 18, buf);
+    snprintf(buf, sizeof(buf), "Largest Unused Block: %.1f GB", max(0.0f, metrics.ramTotal - metrics.ramUsed));
+    s7Text(c.x + 38, c.y + 28, buf);
+    int y = c.y + 40;
+    canvas.drawFastHLine(c.x + 6, y, c.w - 12, S7_BLACK);
+    canvas.drawFastHLine(c.x + 6, y + 2, c.w - 12, S7_BLACK);
+    y += 6;
+    // Rows: memory first, then the top apps by CPU. Bars on the right with the value after them.
+    const int barW = c.w > 290 ? 110 : 90, barX = c.x + c.w - 44 - barW, rowH = c.h > 200 ? 18 : 14;
+    const int rows = min(1 + metrics.numProcs, (c.y + c.h - 2 - y) / rowH);
+    for (int i = 0; i < rows; i++) {
+        int ry = y + i * rowH, ty = ry + (rowH - 7) / 2;
+        float frac;
+        if (i == 0) {
+            s7ChipIcon(c.x + 8, ry + (rowH - 11) / 2);
+            s7Bold(c.x + 26, ty, "Memory");
+            snprintf(buf, sizeof(buf), "%.1fG", metrics.ramUsed);
+            frac = metrics.ram / 100.0f;
+        } else {
+            const Proc &p = metrics.procs[i - 1];
+            s7AppIcon(c.x + 8, ry + (rowH - 11) / 2);
+            canvas.setStyle(1);
+            canvas.setTextColor(S7_BLACK);
+            canvas.cursor(c.x + 26, ty);
+            printFit(p.name, barX - 8 - (c.x + 26));
+            snprintf(buf, sizeof(buf), "%.1f%%", p.cpu);
+            frac = p.cpu / 100.0f;
+        }
+        s7Bar(barX, ry + (rowH - 10) / 2, barW, 10, frac);
+        canvas.setStyle(1);
+        canvas.setTextColor(S7_BLACK);
+        printRight(buf, c.x + c.w - 6, ty);
+    }
+}
+
+// History pane: framed, dotted quarter lines, the newest samples as a filled area (solid or dithered).
+static void s7History(Rect r, const Panel &p, int s, bool dither) {
+    canvas.fillRect(r.x, r.y, r.w, r.h, S7_WHITE);
+    for (int q = 1; q < 4; q++)
+        for (int x = r.x + 1; x < r.x + r.w - 1; x += 3) canvas.drawPixel(x, r.y + r.h * q / 4, S7_GREY);
+    const int inner = r.h - 2, shown = min(r.w - 2, p.count);
+    for (int i = 0; i < shown; i++) {
+        int hgt = (int)(constrain(histAt(p, s, i), 0.0f, 100.0f) / 100.0f * inner + 0.5f);
+        if (hgt <= 0) continue;
+        int x = r.x + r.w - 2 - i;
+        if (dither) {
+            canvas.fillPattern(x, r.y + r.h - 1 - hgt, 1, hgt, S7_BLACK, S7_WHITE);
+            canvas.drawPixel(x, r.y + r.h - 1 - hgt, S7_BLACK);
+        } else canvas.fillRect(x, r.y + r.h - 1 - hgt, 1, hgt, S7_BLACK);
+    }
+    canvas.drawRect(r.x, r.y, r.w, r.h, S7_BLACK);
+}
+
+static void s7Meter(const S7Geom &g) {
+    s7Window(g.meter, "CPU Meter", false);
+    const Rect c = s7Content(g.meter);
+    const int paneH = (c.h - 6) / 2;
+    char buf[16];
+    for (int s = 0; s < 2; s++) {
+        int y = c.y + 3 + s * paneH;
+        s7Bold(c.x + 6, y + 1, s ? "GPU" : "CPU");
+        snprintf(buf, sizeof(buf), "%.0f%%", s ? metrics.gpu : metrics.cpu);
+        canvas.setStyle(1);
+        canvas.setTextColor(S7_BLACK);
+        printRight(buf, c.x + 42, y + 1);
+        s7History({c.x + 48, y, c.w - 54, paneH - 3}, cpuPanel, s, s == 1);
+    }
+}
+
+// Finder icons: a document (disk) and a folder (network).
+static void s7DocIcon(int x, int y) {
+    canvas.fillRect(x, y, 16, 20, S7_WHITE);
+    canvas.drawFastHLine(x, y, 11, S7_BLACK);
+    canvas.drawLine(x + 11, y, x + 15, y + 4, S7_BLACK);
+    canvas.drawFastVLine(x + 15, y + 4, 16, S7_BLACK);
+    canvas.drawFastHLine(x, y + 19, 16, S7_BLACK);
+    canvas.drawFastVLine(x, y, 20, S7_BLACK);
+    canvas.drawFastVLine(x + 11, y, 5, S7_BLACK);
+    canvas.drawFastHLine(x + 11, y + 4, 5, S7_BLACK);
+    for (int k = 0; k < 4; k++) canvas.drawFastHLine(x + 3, y + 8 + k * 3, 9, S7_GREY);
+}
+
+static void s7FolderIcon(int x, int y) {
+    canvas.fillRect(x + 1, y + 1, 8, 3, rgb(0xb4c8ff));
+    canvas.drawRect(x, y, 9, 4, S7_BLACK);
+    canvas.fillRect(x, y + 3, 22, 15, rgb(0xb4c8ff));
+    canvas.drawRect(x, y + 3, 22, 15, S7_BLACK);
+    canvas.drawFastHLine(x + 1, y + 6, 20, S7_BLACK);
+}
+
+static void s7Finder(const S7Geom &g) {
+    s7Window(g.finder, "Macintosh HD", false);
+    const Rect c = s7Content(g.finder);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "4 items");
+    s7Text(c.x + 6, c.y + 3, buf);
+    snprintf(buf, sizeof(buf), "%.0f%% used", metrics.disk);
+    canvas.setStyle(1);
+    printRight(buf, c.x + c.w - 6, c.y + 3);
+    canvas.drawFastHLine(c.x, c.y + 12, c.w, S7_BLACK);
+    canvas.drawFastHLine(c.x, c.y + 14, c.w, S7_BLACK);
+    static const char *const NAMES[4] = {"Disk Read", "Disk Write", "Received", "Sent"};
+    char vals[4][16];
+    snprintf(vals[0], 16, "%.1f MB/s", metrics.diskRead);
+    snprintf(vals[1], 16, "%.1f MB/s", metrics.diskWrite);
+    formatRate(vals[2], 16, metrics.netRx);
+    formatRate(vals[3], 16, metrics.netTx);
+    const int cols = c.w >= 260 ? 4 : 2, rows = 4 / cols, top = c.y + 16;
+    const int cellW = c.w / cols, cellH = (c.y + c.h - top) / rows;
+    for (int i = 0; i < 4; i++) {
+        int cx = c.x + (i % cols) * cellW + cellW / 2, cy = top + (i / cols) * cellH + (cellH - 41) / 2;
+        if (i < 2) s7DocIcon(cx - 8, cy);
+        else s7FolderIcon(cx - 11, cy + 2);
+        canvas.setStyle(1);
+        canvas.setTextColor(S7_BLACK);
+        printCentered(NAMES[i], cx, cy + 23);
+        printCentered(vals[i], cx, cy + 33);
+    }
+}
+
+static void s7PhotoWindow(const S7Geom &g) {
+    if (g.photo.w > 0) s7Window(g.photoWin, "Photo", false);
+}
+
+// Alert for a finished timer: double frame, caution icon, message and the default OK button.
+static void s7Alert(const S7Geom &g) {
+    const Rect a = g.alert;
+    canvas.fillRect(a.x, a.y, a.w, a.h, S7_WHITE);
+    canvas.drawRect(a.x, a.y, a.w, a.h, S7_BLACK);
+    canvas.drawRect(a.x + 3, a.y + 3, a.w - 6, a.h - 6, S7_BLACK);
+    canvas.drawRect(a.x + 4, a.y + 4, a.w - 8, a.h - 8, S7_BLACK);
+    // Caution: a triangle with "!".
+    const int ix = a.x + 16, iy = a.y + 16;
+    canvas.fillTriangle(ix + 16, iy, ix, iy + 28, ix + 32, iy + 28, S7_BLACK);
+    canvas.fillTriangle(ix + 16, iy + 5, ix + 4, iy + 26, ix + 28, iy + 26, rgb(0xffeb3b));
+    canvas.fillRect(ix + 15, iy + 10, 3, 9, S7_BLACK);
+    canvas.fillRect(ix + 15, iy + 21, 3, 3, S7_BLACK);
+    canvas.setStyle(2);
+    canvas.setTextColor(S7_BLACK);
+    canvas.cursor(a.x + 62, a.y + 18);
+    canvas.print("Time's up!");
+    s7Text(a.x + 62, a.y + 40, timerMode() == TM_TIMER ? "Your timer has finished." : "");
+    // OK: rounded button with the thick default outline.
+    const int bw = 64, bh = 22, bx = a.x + a.w - bw - 16, by = a.y + a.h - bh - 14;
+    for (int k = 0; k < 3; k++) canvas.drawRoundRect(bx - 4 + k, by - 4 + k, bw + 8 - 2 * k, bh + 8 - 2 * k, 9 - k, S7_BLACK);
+    canvas.drawRoundRect(bx, by, bw, bh, 6, S7_BLACK);
+    canvas.setStyle(2);
+    printCentered("OK", bx + bw / 2, by + 5);
+}
+
+static void drawS7Scene(const S7Geom &g) {
+    canvas.fillPattern(0, 20, g.W, g.H - 20, S7_DESK0, S7_DESK1);
+    s7MenuBar(g);
+    s7Meter(g);
+    s7Finder(g);
+    s7PhotoWindow(g);
+    s7About(g);
+    if (timerDone()) s7Alert(g);
+    s7ScreenCorners(g);
+}
+
+// Everything except the photo, in up to four rectangles around it.
+static void drawS7() {
+    S7Geom g = s7Geom();
+    const Rect p = g.photo;
+    auto scene = [&] { drawS7Scene(g); };
+    if (p.w == 0) {
+        renderRegion(0, 0, g.W, g.H, scene);
+        return;
+    }
+    if (p.y > 0) renderRegion(0, 0, g.W, p.y, scene);
+    renderRegion(0, p.y, p.x, p.h, scene);
+    if (p.x + p.w < g.W) renderRegion(p.x + p.w, p.y, g.W - p.x - p.w, p.h, scene);
+    renderRegion(0, p.y + p.h, g.W, g.H - p.y - p.h, scene);
+}
+
+// Timer tick: the menu bar clock, and the alert while the timer is done. When the alert goes away the whole screen
+// is redrawn (it may have covered the photo, which is fetched again).
+static void drawS7Tick() {
+    static bool alertShown = false;
+    S7Geom g = s7Geom();
+    auto scene = [&] { drawS7Scene(g); };
+    renderRegion(g.clock.x, g.clock.y, g.clock.w, g.clock.h, scene);
+    if (timerDone()) {
+        alertShown = true;
+        renderRegion(g.alert.x, g.alert.y, g.alert.w, g.alert.h, scene);
+    } else if (alertShown) {
+        alertShown = false;
+        drawS7();
+        dashboardPhoto();
+    }
+}
+
 // ---- Layouts ----
 // Focus layout geometry: the main panel, then a row of 3 mini tiles (tap one to focus it).
 struct FocusGeom {
@@ -1362,6 +1770,10 @@ void drawDashboard() {
     }
     if (settings.layout == LAYOUT_XP) {
         drawXp();
+        return;
+    }
+    if (settings.layout == LAYOUT_SYSTEM7) {
+        drawS7();
         return;
     }
     switch (settings.layout) {
@@ -1417,6 +1829,10 @@ void drawDashboardStatus() {
         drawXp();
         return;
     }
+    if (settings.layout == LAYOUT_SYSTEM7) {
+        drawS7();
+        return;
+    }
     int y = tableGeom().y;
     renderRegion(0, y, TABLE_W, TABLE_HEADER_H, [&] { drawTableHeader(y); });
     drawClock();
@@ -1425,7 +1841,8 @@ void drawDashboardStatus() {
 bool mixedTap(int x, int y);
 
 bool dashboardTap(int x, int y) {
-    if (settings.layout == LAYOUT_LCARS || settings.layout == LAYOUT_XP) return mixedTap(x, y);  // next photo
+    if (settings.layout == LAYOUT_LCARS || settings.layout == LAYOUT_XP || settings.layout == LAYOUT_SYSTEM7)
+        return mixedTap(x, y);  // tap the photo for the next one
     FocusGeom g = focusGeom();
     if (settings.layout != LAYOUT_FOCUS || y < g.tileY || y >= g.tileY + g.tileH) return false;
     int others[3];
@@ -1477,10 +1894,10 @@ static void roundCorners(int x, int y, int w, int h, int r) {
 
 static void photoMessage(Rect p, const char *text) {
     renderRegion(p.x, p.y, p.w, p.h, [&] {
-        if (xpActive()) canvas.fillRect(p.x, p.y, p.w, p.h, XP_PAGE);  // the window's content area
+        if (xpActive() || s7Active()) canvas.fillRect(p.x, p.y, p.w, p.h, XP_PAGE);  // the window's content area
         else card(p.x, p.y, p.w, p.h);
         canvas.setStyle(1);
-        canvas.setTextColor(xpActive() ? XP_TEXT2 : theme.text2);
+        canvas.setTextColor(xpActive() || s7Active() ? XP_TEXT2 : theme.text2);
         printCentered(text, p.x + p.w / 2, p.y + p.h / 2 - 4);
     });
 }
@@ -1490,6 +1907,7 @@ static Rect photoSlot() {
     if (settings.view == VIEW_MIXED) return mixGeom().photo;
     if (lcarsActive() && settings.lcarsPhoto) return lcarsGeom().photo;
     if (xpActive()) return xpGeom().photo;
+    if (s7Active()) return s7Geom().photo;
     return {0, 0, 0, 0};
 }
 
@@ -1503,7 +1921,7 @@ static void drawMixedPhoto() {
         return;
     }
     int count;
-    if (xpActive()) {  // XP: the picture fills the window's client area; the window frame is its border
+    if (xpActive() || s7Active()) {  // XP / System 7: the picture fills the window's content; the frame is its border
         bool ok = fetchPicture(settings.folder, mixedIndex, p.x, p.y, p.w, p.h, count);
         mixedCount = count;
         if (count == 0 || !ok) photoMessage(p, count == 0 ? "no pictures yet" : "picture failed");
@@ -1622,6 +2040,7 @@ bool timerAreaHit(int x, int y) {
     if (lcarsActive()) return inRect(lcarsGeom().timeBox, x, y);
     if (tronActive()) return inRect(tronGeom().term, x, y);
     if (xpActive()) return inRect(xpGeom().tray, x, y) || (timerDone() && inRect(xpGeom().balloon, x, y));
+    if (s7Active()) return inRect(s7Geom().clock, x, y) || (timerDone() && inRect(s7Geom().alert, x, y));
     if (settings.view == VIEW_DASHBOARD) return inRect(clockRect(), x, y);
     if (settings.view == VIEW_MIXED) return inRect(mixGeom().clock, x, y);
     return albumBadgeHit(x, y);
@@ -1631,6 +2050,7 @@ void drawTimerTick() {
     if (lcarsActive()) drawLcarsTimeOnly();
     else if (tronActive()) drawTronTermOnly();
     else if (xpActive()) drawXpTray();
+    else if (s7Active()) drawS7Tick();
     else if (settings.view == VIEW_DASHBOARD) drawClock();
     else if (settings.view == VIEW_MIXED) drawMixedClock();
     else drawClockBadge();

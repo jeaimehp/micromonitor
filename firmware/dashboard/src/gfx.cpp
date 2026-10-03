@@ -20,7 +20,7 @@ void Canvas::setStyle(int style) {
     baseline = f ? -(int8_t)f->glyph['H' - f->first].yOffset : 0;
 }
 
-const char *const LAYOUT_NAMES[LAYOUT_COUNT] = {"Quad", "Stacked", "Focus", "Tiles", "LCARS", "Tron", "XP"};
+const char *const LAYOUT_NAMES[LAYOUT_COUNT] = {"Quad", "Stacked", "Focus", "Tiles", "LCARS", "Tron", "XP", "System 7"};
 Theme theme;
 
 static const int NUM_BUILTIN = sizeof(BUILTIN_THEMES) / sizeof(BUILTIN_THEMES[0]);
@@ -114,6 +114,18 @@ void Canvas::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color
     for (int16_t yy = y; yy < y1; yy++) {
         uint16_t *row = canvasBuf + yy * bufW;
         for (int16_t xx = x; xx < x1; xx++) row[xx] = color;
+    }
+}
+
+void Canvas::fillPattern(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c0, uint16_t c1) {
+    x -= ox;
+    y -= oy;
+    int16_t x1 = min((int)bufW, x + w), y1 = min((int)bufH, y + h);
+    x = max(0, (int)x);
+    y = max(0, (int)y);
+    for (int16_t yy = y; yy < y1; yy++) {
+        uint16_t *row = canvasBuf + yy * bufW;
+        for (int16_t xx = x; xx < x1; xx++) row[xx] = ((xx + ox + yy + oy) & 1) ? c1 : c0;
     }
 }
 

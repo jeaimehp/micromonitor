@@ -24,7 +24,7 @@ from the display's memory:
 
 A Star Trek–style screen: the elbow frame and sidebar (with disk, network, I/O and top-process readouts), the time,
 date and a "stardate", CPU/GPU and memory gauges, and an optional slideshow photo (tap it for the next one; turn it off
-under More → *photo in LCARS/XP layout*, or µMonitor **Display → Photo in LCARS / XP Layout**). Pick it with **Theme → LCARS**.
+under More → *photo in LCARS/XP/Mac layout*, or µMonitor **Display → Photo in LCARS / XP / System 7 Layout**). Pick it with **Theme → LCARS**.
 
 | Landscape with photo | Landscape, no photo | Portrait |
 |---|---|---|
@@ -54,13 +54,26 @@ photo (the same setting as LCARS) opens in its own *My Pictures* window; tap it 
 |---|---|---|
 | ![XP landscape](docs/images/xp_landscape.png) | ![XP with photo](docs/images/xp_photo.png) | ![XP portrait](docs/images/xp_portrait.png) |
 
+### System 7 theme
+
+The classic Mac desktop: a menu bar with the rainbow Apple and the clock, a dithered desktop, and black-and-white
+windows. *About This Macintosh* shows total memory and the largest unused block, with bars for memory and the top
+apps. *CPU Meter* has CPU and GPU history, and *Macintosh HD* shows disk and network as Finder icons. A running timer
+replaces the menu bar clock, and when it finishes an alert pops up with an OK button (tap it to dismiss). With the
+layout photo on, the photo opens in its own window; tap it for the next one. Pick it with **Theme → System 7**.
+
+| Landscape | Landscape with photo | Timer alert | Portrait with photo |
+|---|---|---|---|
+| ![System 7](docs/images/system7_landscape.png) | ![System 7 with photo](docs/images/system7_photo.png) | ![System 7 alert](docs/images/system7_alert.png) | ![System 7 portrait](docs/images/system7_portrait.png) |
+
 ## Features
 
 - **Live graphs**, refreshed every 2 seconds: CPU and GPU utilization, RAM, disk read/write and usage, network rx/tx
 - **Top 5 processes** with CPU and memory, plus a **date/time tile**
-- **7 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
-  **LCARS**, **Tron** and **XP** (see below)
-- **11 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, Tron, Windows XP, High Contrast
+- **8 layouts**: Quad, Stacked (8-minute history), Focus (one big graph; tap a tile to choose which), Tiles (big numbers),
+  **LCARS**, **Tron**, **XP** and **System 7** (see below)
+- **12 themes**: Dark, Light, Retro Green, Amber, Ocean, Synthwave, Solarized, LCARS, Tron, Windows XP, System 7,
+  High Contrast
   (colorblind-safe graph colors)
 - **Album view**: a slideshow of your photos or the built-in pixel-art "motivation" cards; tap the edges for
   previous/next; optional clock badge

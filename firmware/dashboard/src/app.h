@@ -64,6 +64,8 @@ public:
     void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) override;
     void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) override;
     void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override;
+    // 50% dither: a checkerboard of c0 and c1, aligned to screen pixels (so adjacent strips line up).
+    void fillPattern(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c0, uint16_t c1);
     void push(int16_t x, int16_t y);  // byte-swaps the buffer in place: redraw before pushing again
     // Text styles: 1 = native 5x7 pixel font; 2/3/4 = FreeSans Bold 9/12/18pt (cleaner than scaled pixel text).
     void setStyle(int style);
@@ -76,7 +78,7 @@ private:
     int16_t baseline = 0;
 };
 
-enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_LCARS, LAYOUT_TRON, LAYOUT_XP, LAYOUT_COUNT };
+enum Layout : uint8_t { LAYOUT_QUAD, LAYOUT_STACKED, LAYOUT_FOCUS, LAYOUT_TILES, LAYOUT_LCARS, LAYOUT_TRON, LAYOUT_XP, LAYOUT_SYSTEM7, LAYOUT_COUNT };
 extern const char *const LAYOUT_NAMES[LAYOUT_COUNT];
 
 // Theme as stored (RGB888, in the same order as the .thm keys), and as used for drawing (RGB565).
@@ -146,7 +148,7 @@ struct Settings {
     // version 4
     uint16_t slideCustom;  // custom slideshow interval in seconds (slideIdx == SLIDE_CUSTOM)
     // version 5
-    uint8_t lcarsPhoto;    // show a slideshow photo in the LCARS and XP layouts
+    uint8_t lcarsPhoto;    // show a slideshow photo in the LCARS, XP and System 7 layouts
 };
 
 extern Settings settings;

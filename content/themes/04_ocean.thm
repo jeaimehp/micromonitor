@@ -1,4 +1,4 @@
-# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles, lcars, tron, xp.
+# Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles, lcars, tron, xp, system 7.
 name=Ocean
 layout=focus
 surface=#0b1d2a

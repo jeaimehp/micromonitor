@@ -1,14 +1,14 @@
 # Xenon dashboard theme. Colors are RGB hex; layout is one of quad, stacked, focus, tiles, lcars, tron, xp, system 7.
-name=Windows XP
-layout=xp
-surface=#ece9d8
-grid=#c5c2b2
+name=System 7
+layout=system 7
+surface=#ffffff
+grid=#c8c8c8
 text=#000000
-text2=#4d4d4d
+text2=#555555
 series1=#2a64d6
 series2=#d9622b
 good=#2e8a2e
 critical=#c62d1f
-separator=#0a3fd0
-button=#d6d2c2
-accent=#0054e3
+separator=#5a5aa0
+button=#eeeeee
+accent=#5a5aa0
