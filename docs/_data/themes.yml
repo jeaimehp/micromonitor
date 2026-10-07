@@ -1,0 +1,58 @@
+# Theme gallery for docs/themes.md. Colors mirror THEMES in tools/make_themes.py (keep them in sync).
+color:
+  - name: Dark
+    layout: Quad
+    image: theme_dark.png
+    builtin: true
+    description: The default. Warm charcoal cards, blue CPU and orange GPU lines, white text. Built into the firmware, so it works before the Mac connects.
+    colors: { surface: "1a1a19", text: "ffffff", series1: "3987e5", series2: "d95926", accent: "3987e5" }
+  - name: Light
+    layout: Quad
+    image: theme_light.png
+    builtin: true
+    description: Off-white cards with near-black text, for bright rooms and daytime desks. Also built into the firmware.
+    colors: { surface: "fcfcfb", text: "0b0b0b", series1: "2a78d6", series2: "eb6834", accent: "2a78d6" }
+  - name: Retro Green
+    layout: Stacked
+    image: theme_retro_green.png
+    description: A green phosphor terminal. Pairs with the Stacked layout, which shows eight minutes of history per metric.
+    colors: { surface: "0a140a", text: "8dff8d", series1: "22a050", series2: "4a7fe0", accent: "22a050" }
+  - name: Amber
+    layout: Tiles
+    image: theme_amber.png
+    description: An amber monochrome monitor from the '80s, with big Tiles numbers that read from across the room.
+    colors: { surface: "140c00", text: "ffcf80", series1: "c98500", series2: "3987e5", accent: "c98500" }
+  - name: Ocean
+    layout: Focus
+    image: theme_ocean.png
+    description: Deep navy with cool blues. Uses the Focus layout, with one big graph on top; tap a small tile to swap it in.
+    colors: { surface: "0b1d2a", text: "e6f4ff", series1: "2f93c2", series2: "d07a3a", accent: "2f93c2" }
+  - name: Synthwave
+    layout: Tiles
+    image: theme_synthwave.png
+    description: Neon pink and violet on a midnight purple background.
+    colors: { surface: "1a0b2e", text: "fdf0ff", series1: "e05a9a", series2: "5b6ff0", accent: "e05a9a" }
+  - name: Solarized
+    layout: Stacked
+    image: theme_solarized.png
+    description: Ethan Schoonover's well-loved Solarized Dark palette, for anyone whose editor already uses it.
+    colors: { surface: "002b36", text: "fdf6e3", series1: "268bd2", series2: "cb4b16", accent: "268bd2" }
+  - name: High Contrast
+    layout: Tiles
+    image: theme_high_contrast.png
+    description: Pure black and white with colorblind-safe blue and gold graph lines. The most legible option.
+    colors: { surface: "000000", text: "ffffff", series1: "3987e5", series2: "c98500", accent: "ffffff" }
+
+layout:
+  - name: LCARS
+    image: lcars_landscape.png
+    description: The Star Trek computer. An elbow frame and sidebar with disk, network, I/O and top-process readouts, a "stardate", CPU/GPU and memory gauges, and an optional slideshow photo.
+  - name: Tron
+    image: tron_landscape.png
+    description: Flynn's terminal from <i>Tron&#58; Legacy</i>. A live <code>top</code> window beside a shell session, in glowing pixel text with pale window chrome.
+  - name: Windows XP
+    image: xp_photo.png
+    description: Task Manager's Performance tab on the Bliss hill. LED meters, scrolling green history graphs, a taskbar clock, and a notification balloon when a timer ends.
+  - name: System 7
+    image: system7_photo.png
+    description: The classic Mac desktop. <i>About This Macintosh</i>, a CPU Meter, Macintosh HD with disk and network icons, and an alert box when a timer ends.

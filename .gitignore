@@ -7,3 +7,7 @@ firmware/**/target/
 .DS_Store
 build/
 dist/
+docs/_site/
+docs/.jekyll-cache/
+docs/Gemfile.lock
+docs/vendor/

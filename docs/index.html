@@ -1,0 +1,77 @@
+---
+layout: default
+wide: true
+---
+<section class="hero">
+  <!-- Phones: real (translatable) text above a crop of the devices. ≥768px: this text is visually hidden and the full
+       banner, which has the same words in it, takes over. -->
+  <div class="hero-text">
+    <h1 translate="no"><b>µ</b>Monitor</h1>
+    <p class="hero-tagline">Your Mac, at a glance, on a tiny touchscreen.</p>
+    <p class="hero-features">Live CPU · GPU · Memory · Disk · Network · Photos · Timers</p>
+    <ul class="pills">
+      <li><span class="dot cyan"></span>USB live data</li>
+      <li><span class="dot green"></span>Touch control</li>
+      <li><span class="dot orange"></span>Themes</li>
+    </ul>
+  </div>
+  <picture>
+    <source media="(min-width: 768px)" sizes="100vw" width="1672" height="941"
+            srcset="{{ '/images/hero-836.jpg' | relative_url }} 836w, {{ '/images/hero.jpg' | relative_url }} 1672w">
+    <img src="{{ '/images/hero-devices.jpg' | relative_url }}" width="902" height="680"
+         alt="A Mac and the µMonitor touchscreen side by side, both showing live graphs">
+  </picture>
+  <div class="hero-cta">
+    <a class="btn primary" href="{{ '/documentation/#install' | relative_url }}">Install</a>
+    <a class="btn" href="{{ '/documentation/' | relative_url }}">Documentation</a>
+    <a class="btn" href="{{ site.repo }}">View on GitHub</a>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>A little desk display for your Mac</h2>
+    <p class="lede">µMonitor turns a <b>Particle Xenon</b> and an <b>Adafruit 3.5" TFT FeatherWing</b> into a
+      touchscreen system monitor. A menu bar app on the Mac feeds it over USB every 2 seconds, and the display has its
+      own touch menu. No soldering: the Xenon plugs into the back of the FeatherWing.</p>
+
+    <div class="cards">
+      <div class="card"><h3><span class="dot cyan"></span>Live graphs</h3>
+        <p>CPU and GPU utilization, RAM, disk read/write and usage, network rx/tx, the top 5 processes, and a big clock.</p></div>
+      <div class="card"><h3><span class="dot green"></span>Touch control</h3>
+        <p>Tap to open the menu on the display. Every setting is mirrored in the µMonitor menu bar app, both ways.</p></div>
+      <div class="card"><h3><span class="dot orange"></span>12 themes, 8 layouts</h3>
+        <p>Dark, Light, Retro Green, Amber, Synthwave, plus full-screen LCARS, Tron, Windows XP and System 7 layouts.
+          <a href="{{ '/themes/' | relative_url }}">See them all</a>, or make your own.</p></div>
+      <div class="card"><h3><span class="dot purple"></span>Photos and timers</h3>
+        <p>A photo slideshow streamed from your Mac, a mixed photo + dashboard view, and a timer and stopwatch.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Gallery</h2>
+    <div class="gallery">
+      <figure><img src="{{ '/images/dashboard_quad.jpg' | relative_url }}" alt="Quad dashboard" loading="lazy"><figcaption>Quad dashboard</figcaption></figure>
+      <figure><img src="{{ '/images/dashboard_tiles.jpg' | relative_url }}" alt="Tiles layout" loading="lazy"><figcaption>Tiles layout</figcaption></figure>
+      <figure><img src="{{ '/images/mixed.jpg' | relative_url }}" alt="Mixed view" loading="lazy"><figcaption>Mixed view: photo + dashboard</figcaption></figure>
+      <figure><img src="{{ '/images/lcars_landscape.png' | relative_url }}" alt="LCARS theme" loading="lazy"><figcaption>LCARS theme</figcaption></figure>
+      <figure><img src="{{ '/images/tron_landscape.png' | relative_url }}" alt="Tron theme" loading="lazy"><figcaption>Tron theme</figcaption></figure>
+      <figure><img src="{{ '/images/xp_photo.png' | relative_url }}" alt="Windows XP theme" loading="lazy"><figcaption>Windows XP theme</figcaption></figure>
+      <figure><img src="{{ '/images/system7_photo.png' | relative_url }}" alt="System 7 theme" loading="lazy"><figcaption>System 7 theme</figcaption></figure>
+      <figure><img src="{{ '/images/menu.jpg' | relative_url }}" alt="Touch menu" loading="lazy"><figcaption>Touch menu</figcaption></figure>
+      <figure><img src="{{ '/images/menubar_main.png' | relative_url }}" alt="µMonitor menu bar app" loading="lazy"><figcaption>µMonitor menu bar app</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Build one</h2>
+    <p class="lede">You need a Particle Xenon, an Adafruit 3.5" TFT FeatherWing (the V1, STMPE610 touch version), a
+      micro-USB data cable and a Mac. The <a href="{{ '/documentation/' | relative_url }}">documentation</a> covers
+      parts, assembly, flashing and installing the app. No Xenon? See the
+      <a href="{{ '/esp32/' | relative_url }}">ESP32 notes</a> (untested).</p>
+  </div>
+</section>

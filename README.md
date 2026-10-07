@@ -1,5 +1,9 @@
 # µMonitor — a touchscreen system dashboard for your Mac
 
+![µMonitor](docs/images/hero.jpg)
+
+**Website:** [jeaimehpc.com/micromonitor](https://jeaimehpc.com/micromonitor/) (documentation, FAQ, ESP32 notes)
+
 µMonitor turns a **Particle Xenon** and an **Adafruit 3.5" TFT FeatherWing** into a little desk display for your
 Mac. It shows live CPU/GPU, RAM, disk and network graphs, the top processes, a big clock, a photo album and a
 timer/stopwatch. A menu bar app on the Mac (**µMonitor**) feeds it over USB and controls it, and the display has
@@ -280,6 +284,7 @@ content/              Themes, motivation pixel art, contact sheet (bundled into 
 tools/                make_themes.py, make_pixelart.py, make_icon.py, uitest.py (drives the UI over serial),
                       snap.sh (webcam photo), install-launchd.sh (autostart for run.sh)
 setup.py              py2app build for µMonitor
+docs/                 Website (Jekyll, GitHub Pages: main branch, /docs folder) and README images
 pickupandgo.md        Detailed engineering notes / handoff log for every step
 ```
 

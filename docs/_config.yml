@@ -1,0 +1,43 @@
+# Jekyll config for the µMonitor GitHub Pages site.
+# GitHub Pages: Settings → Pages → Build and deployment → Deploy from a branch → main, /docs
+title: µMonitor
+description: Your Mac, at a glance, on a tiny touchscreen. Live CPU, GPU, memory, disk, network, photos and timers on a Particle Xenon + 3.5" TFT FeatherWing.
+url: https://jeaimehpc.com
+baseurl: /micromonitor
+repo: https://github.com/jeaimehp/micromonitor
+email: jeaimehp@gmail.com
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+nav:
+  - title: Home
+    url: /
+  - title: Docs
+    url: /documentation/
+  - title: Themes
+    url: /themes/
+  - title: ESP32
+    url: /esp32/
+  - title: FAQ
+    url: /faq/
+  - title: Contact
+    url: /contact/
+
+# Language picker (header). English is the page language; picking another one machine-translates the page in the
+# browser with Google Translate. The Google script only loads after a visitor chooses a non-English language.
+languages:
+  - { code: en, name: English }
+  - { code: es, name: Español }
+  - { code: fr, name: Français }
+  - { code: de, name: Deutsch }
+  - { code: pt, name: Português }
+  - { code: ja, name: 日本語 }
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .jekyll-cache

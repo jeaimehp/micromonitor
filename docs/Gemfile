@@ -1,0 +1,8 @@
+# Local preview only:  cd docs && bundle install && bundle exec jekyll serve
+# GitHub Pages builds the site itself and ignores this file. The site uses no plugins, so plain Jekyll 4 renders it
+# the same way (the github-pages gem pins Jekyll 3.9 / Liquid 4.0.3, which don't run on Ruby 3.2+).
+source "https://rubygems.org"
+
+gem "jekyll", "~> 4.3"
+gem "kramdown-parser-gfm"
+gem "webrick"
