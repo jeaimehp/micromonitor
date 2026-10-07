@@ -6,6 +6,7 @@ description: Parts, assembly, installation and usage for µMonitor.
 ---
 
 # Documentation
+{:.no_toc}
 
 * TOC
 {:toc}

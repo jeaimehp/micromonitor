@@ -167,6 +167,11 @@ blockquote p { margin: .3em 0; }
 .swatches { display: flex; gap: 6px; margin-top: 10px; }
 .swatches span { width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, .25); }
 
+/* Making-of: quoted prompts */
+.prompt { position: relative; margin: 1.2em 0; padding: 12px 14px 12px 16px; background: var(--code-bg); border: 1px solid var(--border); border-left: 4px solid var(--purple); border-radius: 0 var(--radius) var(--radius) 0; }
+.prompt p { margin: .35em 0; color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88rem; line-height: 1.55; }
+.prompt .prompt-meta { display: block; margin-bottom: 4px; font: 600 .75rem/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .03em; text-transform: uppercase; color: var(--purple); }
+
 /* FAQ */
 details { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin: 10px 0; }
 details[open] { border-color: #2f4257; }

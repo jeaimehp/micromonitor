@@ -21,6 +21,8 @@ nav:
     url: /themes/
   - title: ESP32
     url: /esp32/
+  - title: Story
+    url: /making-of/
   - title: FAQ
     url: /faq/
   - title: Contact
