@@ -22,6 +22,7 @@ setup(
     data_files=[("", ["host/resources/menubar.png", "host/resources/menubar@2x.png"])] + content_files(),
     options={
         "py2app": {
+            "iconfile": "host/resources/AppIcon.icns",
             "includes": ["collector", "sender", "content", "timers"],
             "packages": ["psutil", "serial", "rumps", "PIL", "pillow_heif"],
             "plist": {
