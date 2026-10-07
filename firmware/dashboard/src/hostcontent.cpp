@@ -65,6 +65,7 @@ bool picturePending() {
 // Next payload byte, or -1 after 2s without data. Serial.read() costs about 9us per call on Device OS 1.5.2, which
 // caps the link at about 116 KB/s, hence the RLE.
 static int nextByte() {
+    ApplicationWatchdog::checkin();
     uint32_t t0 = millis();
     while (!Serial.available())
         if (millis() - t0 > 2000) return -1;

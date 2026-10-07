@@ -176,6 +176,7 @@ static void handleLine() {
         int got = 0;
         uint8_t *buf = canvasBytes();
         while (got < benchBytes && millis() - t0 < 20000) {
+            ApplicationWatchdog::checkin();
             int avail = Serial.available();
             while (avail-- > 0 && got < benchBytes) buf[got++ % (CANVAS_PIXELS * 2)] = Serial.read();
         }
@@ -215,12 +216,18 @@ static void handleLine() {
 }
 
 void serviceSerial() {
+    ApplicationWatchdog::checkin();  // blocking screens (calibration, picture fetch) loop through here
     // Stop right after a picture header: the binary payload that follows is read by fetchPicture().
     while (!picturePending() && readLine()) handleLine();
 }
 
 void setup() {
     Serial.begin(115200);
+    // Drop output instead of blocking when nobody reads it: a sleeping Mac can leave the port open but unread,
+    // and a full TX buffer would otherwise stall loop() for good.
+    Serial.blockOnOverrun(false);
+    // Backstop for any other hang: reset if loop() (or a serviceSerial() wait) hasn't checked in for 10 s.
+    static ApplicationWatchdog watchdog(10000, System.reset, 1536);
     // Keep the other SPI devices on the wing deselected.
     pinMode(SD_CS, OUTPUT);
     digitalWrite(SD_CS, HIGH);

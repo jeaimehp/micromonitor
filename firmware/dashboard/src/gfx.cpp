@@ -156,14 +156,17 @@ void screenshot() {
     SPI.transfer(0); SPI.transfer(0); SPI.transfer((h - 1) >> 8); SPI.transfer((h - 1) & 0xFF);
     command(HX8357_RAMRD);
     SPI.transfer(0);  // dummy byte before the pixel data
+    Serial.blockOnOverrun(true);  // the host is reading this one; every byte must get through
     Serial.printlnf("shot %d %d", w, h);
     // One DMA transfer per row (the TX half of the canvas buffer is zero-filled), then send it.
     uint8_t *zeros = row + 2048;
     memset(zeros, 0, w * 3);
     for (int y = 0; y < h; y++) {
+        ApplicationWatchdog::checkin();
         SPI.transfer(zeros, row, w * 3, NULL);
         Serial.write(row, w * 3);
     }
+    Serial.blockOnOverrun(false);
     digitalWrite(TFT_CS, HIGH);
     SPI.endTransaction();
 }
